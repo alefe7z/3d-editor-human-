@@ -102,7 +102,7 @@ export function createExporter(deps) {
     const cs = deps.clothing?.state?.() ?? { outfit: [], colors: {} };
     return makeSettings({
       sex: sexOf(v), values: deps.bodyValues(),
-      colors: { skin: v.skin, eyeColor: v.eyeColor, hairColor: v.hairColor, browColor: v.browColor },
+      colors: { skin: v.skin, eyeColor: v.eyeColor, hairColor: v.hairColor, browColor: v.browColor, hairRootColor: v.hairRootColor },
       appearance: v, hair: v.hair ?? null, outfit: cs.outfit, clothColors: cs.colors,
     }, SLIDER_IDS);
   }
@@ -111,7 +111,7 @@ export function createExporter(deps) {
     const s = normalizeSettings(settingsFromAny(raw), SLIDER_IDS);
     await deps.set('sex', s.sex);
     for (const id of SLIDER_IDS) if (id !== 'gender' && s.values[id] !== undefined) deps.set(id, s.values[id]);
-    for (const [k, v] of Object.entries(s.colors)) deps.set(k, v);
+    for (const [k, v] of Object.entries({ hairRootColor: '#1a1008', ...s.colors })) deps.set(k, v);
     for (const [k, v] of Object.entries(normalizeAppearance(s.appearance))) deps.set(k, v);
     await deps.set('hair', s.hair);
     const cat = deps.clothing?.catalog;

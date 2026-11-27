@@ -1,5 +1,14 @@
 # Status (2026-10-01)
 
+
+## Combined offline editor (2026-11-27)
+
+The offline branch includes the compatible runtime fixes and procedural controls
+from Claude's `b495e4f` and `3a55036`, plus the hair renderer from `96e2044`.
+The main editor retains its existing anatomy, motion, outfit and export controls.
+The GPL distribution retains its notices, with the bundled hair shader under MIT.
+The generator prototype uses the separately generated MakeHuman target dataset.
+
 ## Working
 - MPFB 2.0.17 installed in Blender 5.2 (user_default extension repo). Base: 13 380 verts body, `game_engine` rig (53 bones).
 - `blender/build_base.py` -> `output/base_body.glb` (7.43 MB): 12 morph targets, body + eyes/brows/lashes/teeth/tongue,

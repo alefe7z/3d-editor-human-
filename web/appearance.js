@@ -8,6 +8,13 @@ export const CHEST_APPEARANCE = Object.freeze({
   breastMotion: 0.5,
 });
 
+export const HAIR_LOOK_RANGES = Object.freeze({
+  hairRootMix: [0, 1],
+  hairSoft: [0, 1],
+  hairDensity: [0.3, 1.5],
+  hairStrandVar: [0, 0.8],
+});
+
 export const APPEARANCE = Object.freeze({
   ...CHEST_APPEARANCE,
   skinPores: 0.35,
@@ -16,6 +23,10 @@ export const APPEARANCE = Object.freeze({
   skinFuzz: 0.22,
   skinWrinkles: 0.25,
   hairShine: 0.55,
+  hairRootMix: 0,
+  hairSoft: 0.4,
+  hairDensity: 1.2,
+  hairStrandVar: 0.36,
   hairMotion: 0.45,
   gluteMotion: 0.35,
   frontHipMotion: 0.35,
@@ -25,6 +36,7 @@ export const APPEARANCE = Object.freeze({
 export function normalizeAppearance(source) {
   return Object.fromEntries(Object.entries(APPEARANCE).map(([key, fallback]) => {
     const value = source?.[key];
-    return [key, Number.isFinite(value) ? Math.min(1, Math.max(0, value)) : fallback];
+    const [min, max] = HAIR_LOOK_RANGES[key] ?? [0, 1];
+    return [key, Number.isFinite(value) ? Math.min(max, Math.max(min, value)) : fallback];
   }));
 }

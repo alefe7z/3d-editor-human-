@@ -12,7 +12,7 @@ export const SETTINGS_VERSION = 1;
 export const EXPORT_VERSION = 1;
 const HEX = /^#[0-9a-f]{6}$/i;
 const ID = /^[A-Za-z0-9_-]{1,64}$/;
-const COLOR_KEYS = ['skin', 'eyeColor', 'hairColor', 'browColor'];
+const COLOR_KEYS = ['skin', 'eyeColor', 'hairColor', 'browColor', 'hairRootColor'];
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 // ---- settings JSON ------------------------------------------------------------------------------------

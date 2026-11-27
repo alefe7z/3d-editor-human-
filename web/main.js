@@ -14,7 +14,7 @@ import { CLIPS } from './animation/clips.js';
 import { supportPose } from './animation/support-pose.js';
 import { createIdleVariation } from './animation/idlevary.js';
 import { createEyeLife, applyMorphWeights } from './eyelife.js';
-import { APPEARANCE, CHEST_APPEARANCE, normalizeAppearance } from './appearance.js';
+import { APPEARANCE, CHEST_APPEARANCE, HAIR_LOOK_RANGES, normalizeAppearance } from './appearance.js';
 import { upgradeSkin, upgradeHair, upgradeCornea, setSkinParams, setAppearance, updateHairMotion, hairUniforms, createHairCollider } from './materials.js';
 import { installPelvisMorphs, GLUTE_MOTION, FRONT_HIP_MOTION, EXTERNAL_MOTION } from './glutes.js';
 import { applyHairPasses, setHairLook, DEFAULT_HAIR_LOOK, HAIR_COLOR_STYLES, hairColorStyle, hairPassState, hairPassMaterials } from './hairpasses.js';
@@ -32,6 +32,7 @@ const params = new URLSearchParams(location.search);
 // ---- i18n (da default, en via ?lang=en) ----
 const I18N = {
   da: {
+    generatorPrototype: 'Åbn generatorprototypen',
     secSurface: 'Hud- og hårdetaljer', skinPores: 'Porer', skinRoughness: 'Hudens ruhed', skinScattering: 'Lysspredning', skinFuzz: 'Dun', skinWrinkles: 'Rynker', hairShine: 'Hårets glans', hairMotion: 'Hårbevægelse',
     sex: 'Køn', sexMale: 'Mand', sexFemale: 'Kvinde',
     areolaPigmentation: 'Areolapigmentering', areolaCoverage: 'Pigmentets udstrækning', nippleRelief: 'Brystvortens reliefhøjde', nippleWidth: 'Brystvortens bredde', nippleTip: 'Brystvortens spidshed',
@@ -73,6 +74,7 @@ const I18N = {
     cloth: 'Stoffysik', wind: 'Vind',
   },
   en: {
+    generatorPrototype: 'Open generator prototype',
     secSurface: 'Skin and hair detail', skinPores: 'Pores', skinRoughness: 'Skin roughness', skinScattering: 'Skin scattering', skinFuzz: 'Skin fuzz', skinWrinkles: 'Wrinkle detail', hairShine: 'Hair shine', hairMotion: 'Hair motion',
     sex: 'Sex', sexMale: 'Male', sexFemale: 'Female',
     areolaPigmentation: 'Areola pigmentation', areolaCoverage: 'Pigment coverage', nippleRelief: 'Nipple relief height', nippleWidth: 'Nipple width', nippleTip: 'Nipple tip sharpness',
@@ -671,7 +673,7 @@ checkbox(secEyes, 'blink');
 const secLooks = section('secLooks');
 const surface = section('secSurface', false);
 for (const id of Object.keys(APPEARANCE)) {
-  if (!Object.hasOwn(CHEST_APPEARANCE, id) && id !== 'gluteMotion' && id !== 'frontHipMotion' && id !== 'externalMotion' && !(HAIR_PASSES && id === 'hairShine')) slider(surface, { id, min: 0 });
+  if (!Object.hasOwn(HAIR_LOOK_RANGES, id) && !Object.hasOwn(CHEST_APPEARANCE, id) && id !== 'gluteMotion' && id !== 'frontHipMotion' && id !== 'externalMotion' && !(HAIR_PASSES && id === 'hairShine')) slider(surface, { id, min: 0 });
 }
 function colorInput(id, label) {
   const cl = document.createElement('label'); cl.textContent = label;
@@ -847,6 +849,14 @@ speedIn.setAttribute('aria-label', t('speed'));
 const secAnim = section('secAnim');
 secAnim.append(al, animSel, playBtn, jumpBtn, sl, speedIn);
 checkbox(secAnim, 'idleVary');
+fetch('./data/meta.json').then(response => {
+  if (!response.ok) return;
+  const prototypeLink = Object.assign(document.createElement('a'), {
+    href: './runtime.html', target: '_blank', rel: 'noopener', textContent: t('generatorPrototype'),
+  });
+  prototypeLink.className = 'prototype-link';
+  ui.insertBefore(prototypeLink, resetBtn);
+}).catch(() => {});
 ui.append(resetBtn);                           // keep Reset last
 
 function syncAnimUI() {

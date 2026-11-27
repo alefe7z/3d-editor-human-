@@ -2,9 +2,16 @@
 
 Page: `web/runtime.html` (+ `runtime.js`, `mh/human.js`). Needs `web/data/` (below); `?shot` keeps the drawing buffer for screenshots.
 
+## Offline package
+
+Run `python tools/export_data.py <mpfb-data-directory> web/data` before building
+the executable to include the prototype. The combined Windows build used MPFB
+2.0.17 (commit `80919fa4682335c41847f761a4d79dcad4124732`). The pack uses only
+CC0 asset data and does not include MPFB executable code.
+
 ## How it works
 - `tools/export_data.py` packs CC0 MakeHuman data from the installed MPFB (`...\extensions\user_default\mpfb\data`) into `web/data/` (git-ignored, regenerate with `python tools/export_data.py`):
-  `mesh.bin` (base positions, uv, vertex map, triangles; body group only = 13 380 verts), `macro.json`, `meta.json`, `targets/*.bin` (608 sparse targets: 348 macro, 216 breast macro, plus the whole detail folders the face / chest sliders use; 44 files today, 29.4 MB in total, loaded on demand). The int16 step (`meta.deltaStep`) is derived from the largest |delta| (10.67 dm, the baby race targets), so nothing is clipped; the earlier fixed 0.0003 dm step clipped 6 baby targets at 9.83 dm (babies up to 80 mm off, children 37 mm). Regenerate `web/data/` made before this fix.
+  `mesh.bin` (base positions, uv, vertex map, triangles; body group only = 13 380 verts), `macro.json`, `meta.json`, `targets/*.bin` (813 sparse targets and about 30 MB with MPFB 2.0.17, loaded on demand). The int16 step (`meta.deltaStep`) is derived from the largest |delta| (10.67 dm, the baby race targets), so nothing is clipped; the earlier fixed 0.0003 dm step clipped 6 baby targets at 9.83 dm (babies up to 80 mm off, children 37 mm). Regenerate `web/data/` made before this fix.
 - `web/mh/human.js` ports MPFB `TargetService.calculate_target_stack_from_macro_info_dict`: macro sliders -> interpolated weights (race x gender x age, universal gender-age-muscle-weight, height, proportions, and since 2026-11-27 the breast macros cupsize x firmness) -> `positions = base + sum(w_i * target_i)`. Engine-agnostic (typed arrays + a loader). The breast targets follow MPFB exactly: female targets only, not scaled by the gender weight (a male body with cupsize 1 gets them too, as in MPFB), no baby targets, no `averagecup-averagefirmness` file.
 - `web/mh/details.js` (MIT): the 13 face sliders and 3 chest detail sliders of the baked viewer (same ids, target files and side scales as `web/character.js` / `blender/build_base.py`), bipolar -1..1 -> detail-target weights for `Human.apply(macros, details)`. Detail targets are summed exactly (no linear bake, no correctives needed).
 - Targets missing from an older `web/data/` are skipped and reported (`human.lastMissing`, on screen and once in the console) instead of failing.

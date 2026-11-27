@@ -23,6 +23,7 @@
  fieldset.seg label:first-of-type{border-radius:4px 0 0 4px} fieldset.seg label:last-of-type{border-radius:0 4px 4px 0;border-left:0}
  fieldset.seg label:has(input:checked){background:#5b6b8a;color:#fff;border-color:#7d8db0}
  fieldset.seg label:has(input:focus-visible){outline:2px solid #9ab}
+ .prototype-link{display:block;margin-top:12px;color:#b8d9ff}
  details[hidden],label.check[hidden]{display:none}
  .colors{display:grid;grid-template-columns:auto 1fr;gap:4px 8px;align-items:center;margin-top:4px}
  .colors label.inline{margin:0;opacity:.8} .colors input[type=color]{height:24px} .colors [hidden]{display:none}
@@ -33,11 +34,11 @@
 </style>
 <script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 <script>
- // Shown if main.js (or three.js from the CDN) cannot be loaded; main.js sets window.__booted.
+ // Shown if main.js or the bundled renderer cannot be loaded; main.js sets window.__booted.
  function __fatal(msg){var s=document.getElementById('status');if(!s)return;s.className='error';s.textContent=msg;}
  var __en=/[?&]lang=en\b/.test(location.search);
- var __bootMsg=__en?'Could not load the 3D engine (three.js from cdn.jsdelivr.net). Check your network connection and reload.'
-                  :'Kunne ikke indlæse 3D-motoren (three.js fra cdn.jsdelivr.net). Tjek netforbindelsen og genindlæs siden.';
+ var __bootMsg=__en?'Could not load the bundled 3D engine. Reopen the local editor and try again.'
+                  :'Kunne ikke indlæse den lokale 3D-motor. Åbn editoren igen.';
  setTimeout(function(){if(!window.__booted)__fatal(__bootMsg);},15000);
 </script>
 </head><body><div id="status"></div><div id="ui"></div>
