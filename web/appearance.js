@@ -3,6 +3,8 @@ export const CHEST_APPEARANCE = Object.freeze({
   areolaPigmentation: 0.5,
   areolaCoverage: 0.5,
   nippleRelief: 0,
+  nippleWidth: 0.5,
+  nippleTip: 0.5,
 });
 
 export const APPEARANCE = Object.freeze({

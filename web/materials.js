@@ -94,6 +94,8 @@ export const skinUniforms = {
   ccAreolaPigment: { value: 0 },
   ccAreolaCoverage: { value: 0.5 },
   ccNippleRelief: { value: 0 },
+  ccNippleWidth: { value: 0.5 },
+  ccNippleTip: { value: 0.5 },
 };
 
 /** Areola tone-down from the gender slider (-1 female .. 1 male): 0 for female, ~0.35 neutral, 0.7 male. */
@@ -125,6 +127,7 @@ uniform float ccAreola; uniform float ccInvGain; uniform float ccSSS;
 uniform sampler2D ccPores; uniform float ccPoreRepeat; uniform float ccPoreStrength;
 uniform float ccRoughness; uniform float ccFuzz; uniform float ccWrinkles;
 uniform float ccChestGate; uniform float ccAreolaPigment; uniform float ccAreolaCoverage; uniform float ccNippleRelief;
+uniform float ccNippleWidth; uniform float ccNippleTip;
 float ccThinV = 0.0;
 float ccReliefHeight = 0.0;`);
     f = insertAfter(f, '#include <map_fragment>', `
@@ -144,7 +147,11 @@ float ccReliefHeight = 0.0;`);
     float ccDarken = ccExpand * 0.18 + ccCoverage * max( ccAreolaPigment, 0.0 ) * 0.5;
     diffuseColor.rgb = mix( diffuseColor.rgb, ccSkinTone, ccLighten * ccChestGate );
     diffuseColor.rgb *= 1.0 - ccDarken * ccChestGate;
-    ccReliefHeight = pow( ccMask, 8.0 ) * ccNippleRelief;
+    float ccRadius = sqrt( -log( max( ccMask, 1e-5 ) ) );
+    float ccHalfWidth = 0.294353 * exp2( 2.0 * ( ccNippleWidth - 0.5 ) );
+    float ccTipExponent = exp2( 2.0 - 2.0 * ccNippleTip );
+    ccReliefHeight = exp2( -pow( ccRadius / ccHalfWidth, ccTipExponent ) )
+      * smoothstep( 0.03, 0.12, ccMask ) * ccNippleRelief;
   }
 #endif`);
     f = insertAfter(f, '#include <normal_fragment_maps>', `
@@ -187,7 +194,7 @@ float ccReliefHeight = 0.0;`);
   }`);
     sh.fragmentShader = f;
   };
-  m.customProgramCacheKey = () => 'ccSkin3';
+  m.customProgramCacheKey = () => 'ccSkin4';
   m.needsUpdate = true;
   return m;
 }
@@ -212,6 +219,8 @@ export function setAppearance(values) {
   skinUniforms.ccAreolaPigment.value = 2 * (values.areolaPigmentation - 0.5);
   skinUniforms.ccAreolaCoverage.value = values.areolaCoverage;
   skinUniforms.ccNippleRelief.value = values.nippleRelief * chestGate * 0.0015;
+  skinUniforms.ccNippleWidth.value = values.nippleWidth;
+  skinUniforms.ccNippleTip.value = values.nippleTip;
   skinUniforms.ccPoreStrength.value = values.skinPores;
   skinUniforms.ccRoughness.value = values.skinRoughness;
   skinUniforms.ccSSS.value = values.skinScattering;

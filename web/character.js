@@ -41,6 +41,21 @@ export const SLIDERS = [
 export const FACE_SLIDERS = SLIDERS.filter(s => s.group === 'face');
 export const BREAST_SLIDERS = SLIDERS.filter(s => s.group === 'breast');
 
+// Presets assign ordinary sliders, so the preset result follows the same morph and export path as manual edits.
+export const BREAST_SIZE_PRESETS = Object.freeze({
+  small: -0.75,
+  medium: 0,
+  large: 0.65,
+  full: 1,
+});
+
+export const BREAST_SHAPE_PRESETS = Object.freeze({
+  rounded: { breastFirmness: 0.4, breastHeight: 0, breastSpacing: 0, breastProjection: -0.65 },
+  sloped: { breastFirmness: -0.2, breastHeight: -0.35, breastSpacing: 0, breastProjection: -0.15 },
+  projected: { breastFirmness: 0.55, breastHeight: 0.15, breastSpacing: 0, breastProjection: 0.65 },
+  wideSet: { breastFirmness: 0.15, breastHeight: -0.1, breastSpacing: 0.65, breastProjection: -0.3 },
+});
+
 // ---- sex -----------------------------------------------------------------------------------------------
 export const SEXES = { male: 1, female: -1 };
 /** 'male' | 'female' from slider values (gender >= 0 is male; a missing gender is the default, male). */

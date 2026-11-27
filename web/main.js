@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import {
-  SLIDERS, applySliders, applySkeleton, validateMorphs, applyTints, characterMeshes, bindToSkeleton, materialRole,
+  SLIDERS, BREAST_SIZE_PRESETS, BREAST_SHAPE_PRESETS, applySliders, applySkeleton, validateMorphs, applyTints, characterMeshes, bindToSkeleton, materialRole,
   sliderInfluences, SEXES, sexOf, genderOfSex, defaultValues, breastGate,
 } from './character.js';
 import { createBreastPhysics, breastMotionScale, combineSupport, zeroWeights, DYN_MORPHS } from './breastphysics.js';
@@ -27,7 +27,9 @@ const I18N = {
   da: {
     secSurface: 'Hud- og hårdetaljer', skinPores: 'Porer', skinRoughness: 'Hudens ruhed', skinScattering: 'Lysspredning', skinFuzz: 'Dun', skinWrinkles: 'Rynker', hairShine: 'Hårets glans', hairMotion: 'Hårbevægelse',
     sex: 'Køn', sexMale: 'Mand', sexFemale: 'Kvinde',
-    areolaPigmentation: 'Areolapigmentering', areolaCoverage: 'Pigmentets udstrækning', nippleRelief: 'Brystvortens relief',
+    areolaPigmentation: 'Areolapigmentering', areolaCoverage: 'Pigmentets udstrækning', nippleRelief: 'Brystvortens reliefhøjde', nippleWidth: 'Brystvortens bredde', nippleTip: 'Brystvortens spidshed',
+    sizePreset: 'Størrelsesvalg', shapePreset: 'Formvalg', choosePreset: 'Vælg en forudindstilling',
+    small: 'Lille', medium: 'Mellem', large: 'Stor', full: 'Fyldig', rounded: 'Rund', sloped: 'Dråbeformet', projected: 'Fremspringende', wideSet: 'Bred afstand',
     inspectChest: 'Skjul tøj over brystet', chestFront: 'Forfra', chestSide: 'Fra siden', resetChest: 'Nulstil brystindstillinger',
     secBreast: 'Bryster', breastSize: 'Størrelse', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
     breastSpacing: 'Afstand', breastProjection: 'Form (rund ↔ spids)', breastPhysics: 'Brystfysik',
@@ -56,7 +58,9 @@ const I18N = {
   en: {
     secSurface: 'Skin and hair detail', skinPores: 'Pores', skinRoughness: 'Skin roughness', skinScattering: 'Skin scattering', skinFuzz: 'Skin fuzz', skinWrinkles: 'Wrinkle detail', hairShine: 'Hair shine', hairMotion: 'Hair motion',
     sex: 'Sex', sexMale: 'Male', sexFemale: 'Female',
-    areolaPigmentation: 'Areola pigmentation', areolaCoverage: 'Pigment coverage', nippleRelief: 'Nipple surface relief',
+    areolaPigmentation: 'Areola pigmentation', areolaCoverage: 'Pigment coverage', nippleRelief: 'Nipple relief height', nippleWidth: 'Nipple width', nippleTip: 'Nipple tip sharpness',
+    sizePreset: 'Size preset', shapePreset: 'Shape preset', choosePreset: 'Choose a preset',
+    small: 'Small', medium: 'Medium', large: 'Large', full: 'Full volume', rounded: 'Rounded', sloped: 'Sloped', projected: 'Projected', wideSet: 'Wide-set',
     inspectChest: 'Hide chest garments for inspection', chestFront: 'Front view', chestSide: 'Side view', resetChest: 'Reset chest settings',
     secBreast: 'Chest', breastSize: 'Size', breastFirmness: 'Firmness (lift)', breastHeight: 'Position (low ↔ high)',
     breastSpacing: 'Spacing', breastProjection: 'Shape (round ↔ pointed)', breastPhysics: 'Breast physics',
@@ -483,6 +487,25 @@ for (const [id, view] of [['chestFront', 'chest'], ['chestSide', 'chestSide']]) 
   chestViews.append(button);
 }
 secBreast.append(chestViews);
+function chestPreset(id, presets, apply) {
+  const label = Object.assign(document.createElement('label'), { textContent: t(id) });
+  const select = document.createElement('select');
+  select.setAttribute('aria-label', t(id));
+  select.append(new Option(t('choosePreset'), ''));
+  for (const key of Object.keys(presets)) select.append(new Option(t(key), key));
+  select.onchange = () => {
+    if (!select.value) return;
+    for (const [key, value] of Object.entries(apply(presets[select.value]))) {
+      values[key] = value;
+      inputs[key]?.show(value);
+    }
+    select.value = '';
+    update();
+  };
+  secBreast.append(label, select);
+}
+chestPreset('sizePreset', BREAST_SIZE_PRESETS, breastSize => ({ breastSize }));
+chestPreset('shapePreset', BREAST_SHAPE_PRESETS, shape => shape);
 for (const s of chestSliders) slider(secBreast, s);
 checkbox(secBreast, 'breastPhysics');
 for (const id of Object.keys(CHEST_APPEARANCE)) slider(secBreast, { id, min: 0 });

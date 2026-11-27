@@ -8,7 +8,9 @@ carry those choices. A GLB by itself uses ordinary PBR materials, so web shader
 effects and animation-driven hair motion depend on the host.
 
 In **Chest**, the female body has additional controls for areola pigmentation,
-pigment coverage and nipple surface relief. These settings use the existing
+pigment coverage, and nipple relief height, width and tip shape. Increase the
+relief height to reveal changes in width and tip shape. Size and shape presets
+set the same breast sliders that can then be adjusted manually. These settings use the existing
 skin-region mask and follow the age and sex gate used by the chest controls.
 The relief changes shading without displacing the mesh. JSON presets and GLB
 metadata preserve the values. The local skin effects require the web shader.
