@@ -1,4 +1,19 @@
-# Status (2026-10-01)
+# Status (2026-11-27)
+
+## 2026-11-27 session (branch `claude/zealous-volta-t1mna3`)
+- [x] Runtime prototype bugs fixed (`b495e4f`): clipped baby/child targets (up to 80 mm, int16 step now derived from
+      the data), UV-seam lighting lines (welded normals), unchecked fetch / poisoned target cache, overlapping
+      `apply()` calls mixing results, frozen UI after an error, all-zero race. <= 0.04 mm vs an unquantised sum of the
+      MPFB `.target.gz` files. `tests/runtime.test.mjs`.
+- [x] Licence MIT again (`c907eb9`), except the GPL files listed in LICENSE-NOTES.md; no-MPFB-paste tripwire removed.
+- [x] Runtime generator (`3a55036`): breast macros (cupsize / firmness, MPFB rules) + the 13 face and 3 chest detail
+      sliders (`web/mh/details.js`); target stacks identical to MPFB's function for 7 profiles; 608 targets, 29.4 MB.
+- [x] Hair stage 1 (`96e2044`): vendored threejs-hair-shader (MIT) via `web/hairpasses.js`; hair area, shadow and
+      export unchanged vs the old pass; new look controls. Numbers: `docs/HAIR_SHADER.md`.
+- [x] Checked, not reproduced: face parts out of place, breast physics not working (main viewer). Parts follow the
+      skin within ~7 mm on 25 sliders x 4 clips, GPU render vs CPU ~1 mm; breast physics 5-7 mm at a run (female only).
+      Likely cause on the owner's machine: stale `build/site` / browser cache.
+- [ ] Open: see AGENTS.md "Open work".
 
 ## Working
 - MPFB 2.0.17 installed in Blender 5.2 (user_default extension repo). Base: 13 380 verts body, `game_engine` rig (53 bones).
