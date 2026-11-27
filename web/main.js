@@ -28,7 +28,7 @@ const I18N = {
     secSurface: 'Hud- og hårdetaljer', skinPores: 'Porer', skinRoughness: 'Hudens ruhed', skinScattering: 'Lysspredning', skinFuzz: 'Dun', skinWrinkles: 'Rynker', hairShine: 'Hårets glans', hairMotion: 'Hårbevægelse',
     sex: 'Køn', sexMale: 'Mand', sexFemale: 'Kvinde',
     areolaPigmentation: 'Areolapigmentering', areolaCoverage: 'Pigmentets udstrækning', nippleRelief: 'Brystvortens relief',
-    inspectChest: 'Skjul tøj over brystet',
+    inspectChest: 'Skjul tøj over brystet', chestFront: 'Forfra', chestSide: 'Fra siden', resetChest: 'Nulstil brystindstillinger',
     secBreast: 'Bryster', breastSize: 'Størrelse', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
     breastSpacing: 'Afstand', breastProjection: 'Form (rund ↔ spids)', breastPhysics: 'Brystfysik',
     age: 'Alder (barn ↔ gammel)', height: 'Højde', weight: 'Vægt',
@@ -57,7 +57,7 @@ const I18N = {
     secSurface: 'Skin and hair detail', skinPores: 'Pores', skinRoughness: 'Skin roughness', skinScattering: 'Skin scattering', skinFuzz: 'Skin fuzz', skinWrinkles: 'Wrinkle detail', hairShine: 'Hair shine', hairMotion: 'Hair motion',
     sex: 'Sex', sexMale: 'Male', sexFemale: 'Female',
     areolaPigmentation: 'Areola pigmentation', areolaCoverage: 'Pigment coverage', nippleRelief: 'Nipple surface relief',
-    inspectChest: 'Hide chest garments for inspection',
+    inspectChest: 'Hide chest garments for inspection', chestFront: 'Front view', chestSide: 'Side view', resetChest: 'Reset chest settings',
     secBreast: 'Chest', breastSize: 'Size', breastFirmness: 'Firmness (lift)', breastHeight: 'Position (low ↔ high)',
     breastSpacing: 'Spacing', breastProjection: 'Shape (round ↔ pointed)', breastPhysics: 'Breast physics',
     age: 'Age (child ↔ old)', height: 'Height', weight: 'Weight',
@@ -390,12 +390,18 @@ function setView(name) {
   const hb = body?.skeleton?.bones.find(b => b.name === 'head');
   const head = hb ? hb.getWorldPosition(new THREE.Vector3()) : new THREE.Vector3(0, 1.55, 0);
   const faceY = head.y + 0.06;
+  const spine = body?.skeleton?.getBoneByName('spine_03');
+  const chest = spine?.getWorldPosition(new THREE.Vector3()) ?? new THREE.Vector3(head.x, head.y - 0.38, head.z);
+  // Keep a wider field on narrow displays so both sides of the chest fit.
+  const chestDistance = 1.1 * Math.max(1, 0.88 / cam.aspect);
   const V = {
     front: [[0, 1.1, 4], [0, 0.9, 0]],
     side: [[4, 1.1, 0], [0, 0.9, 0]],
     back: [[0, 1.1, -4], [0, 0.9, 0]],
     torso: [[0, head.y - 0.3, 1.5], [0, head.y - 0.38, 0]],
     torsoSide: [[1.5, head.y - 0.3, 0.05], [0, head.y - 0.38, 0.05]],
+    chest: [[chest.x, chest.y, chest.z + chestDistance], chest.toArray()],
+    chestSide: [[chest.x + chestDistance, chest.y, chest.z], chest.toArray()],
     legs: [[0, 0.55, 1.8], [0, 0.5, 0]],
     face: [[head.x, faceY + 0.02, head.z + 0.75], [head.x, faceY, head.z]],
     eyes: [[head.x + 0.05, faceY + 0.03, head.z + 0.34], [head.x + 0.02, faceY + 0.02, head.z + 0.08]],
@@ -468,13 +474,32 @@ sexSwitch(secBody);
 for (const s of SLIDERS.filter(x => x.group === 'body' && !x.binary)) slider(secBody, s);
 // female-only: hidden for a male body (syncSexUI); the sliders are gated to zero there anyway (breastGate)
 const secBreast = section('secBreast');
-for (const s of SLIDERS.filter(x => x.group === 'breast')) slider(secBreast, s);
+const chestSliders = SLIDERS.filter(x => x.group === 'breast');
+const chestViews = document.createElement('div');
+chestViews.className = 'view-buttons';
+for (const [id, view] of [['chestFront', 'chest'], ['chestSide', 'chestSide']]) {
+  const button = Object.assign(document.createElement('button'), { type: 'button', textContent: t(id) });
+  button.onclick = () => setView(view);
+  chestViews.append(button);
+}
+secBreast.append(chestViews);
+for (const s of chestSliders) slider(secBreast, s);
 checkbox(secBreast, 'breastPhysics');
 for (const id of Object.keys(CHEST_APPEARANCE)) slider(secBreast, { id, min: 0 });
 const inspectChestLabel = Object.assign(document.createElement('label'), { className: 'check', hidden: true });
 const inspectChestToggle = Object.assign(document.createElement('input'), { type: 'checkbox' });
 inspectChestLabel.append(inspectChestToggle, document.createTextNode(` ${t('inspectChest')}`));
-secBreast.append(inspectChestLabel);
+const resetChestButton = Object.assign(document.createElement('button'), { type: 'button', textContent: t('resetChest') });
+resetChestButton.onclick = () => {
+  const defaults = Object.fromEntries(chestSliders.map(({ id }) => [id, DEFAULT_BODY[id]]));
+  for (const [id, value] of Object.entries({ ...defaults, ...CHEST_APPEARANCE, breastPhysics: DEFAULT_TOGGLES.breastPhysics })) {
+    values[id] = value;
+    inputs[id]?.show(value);
+  }
+  update();
+  breast.reset();
+};
+secBreast.append(inspectChestLabel, resetChestButton);
 function setChestInspection(enabled) {
   inspectChestToggle.checked = Boolean(enabled) && breastGate(values) === 1;
   clothing.setChestInspection(inspectChestToggle.checked);
