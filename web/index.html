@@ -29,7 +29,7 @@
  #status.error{background:#5a1f24;color:#fff;white-space:pre-wrap}
  @media (max-width:600px){#ui{top:auto;left:0;width:auto;height:45%}#status{max-width:calc(100% - 24px)}}
 </style>
-<script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"}}</script>
+<script type="importmap">{"imports":{"three":"./vendor/three/three.module.min.js","three/addons/":"./vendor/three/examples/jsm/"}}</script>
 <script>
  // Shown if main.js (or three.js from the CDN) cannot be loaded; main.js sets window.__booted.
  function __fatal(msg){var s=document.getElementById('status');if(!s)return;s.className='error';s.textContent=msg;}

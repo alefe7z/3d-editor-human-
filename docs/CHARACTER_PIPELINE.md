@@ -9,7 +9,8 @@ effects and animation-driven hair motion depend on the host.
 
 ## Use the creator from a web host
 
-Serve `web/` with the built assets as described in the README. The editor exposes
+Use `python tools/serve_offline.py` to serve the editor and bundled assets
+locally without internet access. The editor exposes
 one character session at `contentWindow.characterCreator` after the iframe's
 `__ready` flag is true. The host and iframe must share an origin to use this API.
 

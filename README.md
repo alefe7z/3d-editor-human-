@@ -82,15 +82,22 @@ pore micro-normals, male areola tone-down) does not change this contract: it onl
 or blends toward `color / gain` (the picked tint), so any skin colour keeps working. Engines that ignore it just
 get the plain PBR look.
 
-## Run locally
+## Run locally or offline
 
-```powershell
-New-Item -ItemType Directory -Force build\site | Out-Null
-Copy-Item web\* build\site -Recurse -Force; Copy-Item output\*.glb, output\*.json build\site -Force
-python -m http.server -d build\site 8000    # open http://localhost:8000/
+The repository includes the prebuilt models and local Three.js r170 modules.
+With Python 3 and a browser that supports WebGL 2, start the editor from a
+complete local checkout:
+
+```sh
+python tools/serve_offline.py
 ```
 
-(`.\deploy.ps1 -StageOnly` does the same staging.) The page needs HTTP (not `file://`) because it loads the
+Open http://127.0.0.1:8000/?lang=en. On Windows, use `py` if Python is registered
+under that command. Use `--port 8001` if port 8000 is busy. The server only
+listens on the local computer. Creating characters, loading local presets and
+exporting GLB files work without internet access.
+
+The page needs HTTP (not `file://`) because it loads the
 GLB and ES modules. For scripted tests it exposes `window.__ready` and `window.__set(id, value)` (ids: the
 sliders, `skin`, `eyeColor`, `hairColor`, `browColor`, and `hair` = style id or `none`, which returns a
 promise; clothing: `outfit` = ids array/comma string/null, `wear` = id, `takeOff` = slot, `clothColor` =
