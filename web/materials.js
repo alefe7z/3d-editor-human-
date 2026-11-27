@@ -262,6 +262,56 @@ export function updateHairMotion(dt, head, wind) {
 
 export const HAIR_COLLIDE_FROM = 0.05;            // m from the scalp: shorter strands never move
 
+/** The project's hair shader patch (shoulder collision in the vertex shader, root -> tip tone and the optional
+ *  hairline fade in the fragment shader), on any MeshStandard/Physical shader. Also defines `ccRootT` (0 at the
+ *  scalp -> 1 at ccGradLen, from the _CCHAIR strand-length attribute) for other patches, e.g. web/hairpasses.js. */
+export function patchHairShader(sh, { hasLen, hasEdge, singlePass = false }) {
+  Object.assign(sh.uniforms, hairUniforms);
+  let v = sh.vertexShader;
+  v = v.replace('#include <common>', `#include <common>
+${hasLen ? 'attribute float _cchair;' : ''} ${hasEdge ? 'attribute float _ccedge;' : ''}
+varying float vCcLen; varying float vCcEdge;
+uniform vec3 ccHairOffset; uniform float ccCollide; uniform float ccCollideFrom; uniform float ccCollideTo; uniform vec3 ccCapA[3]; uniform vec3 ccCapB[3]; uniform float ccCapR[3];`);
+  v = insertAfter(v, '#include <skinning_vertex>', `
+vCcLen = ${hasLen ? '_cchair' : '0.1'};
+vCcEdge = ${hasEdge ? '_ccedge' : '1.0'};
+{
+  float ccLengthWeight = smoothstep( ccCollideFrom, ccCollideTo, vCcLen );
+  transformed += ccHairOffset * ccLengthWeight;
+  float ccW = ccCollide * ccLengthWeight;
+  if ( ccW > 0.0 ) {
+    for ( int i = 0; i < 3; i ++ ) {
+      vec3 ab = ccCapB[ i ] - ccCapA[ i ];
+      float h = clamp( dot( transformed - ccCapA[ i ], ab ) / max( dot( ab, ab ), 1e-8 ), 0.0, 1.0 );
+      vec3 d = transformed - ( ccCapA[ i ] + ab * h );
+      float l = length( d );
+      if ( l < ccCapR[ i ] && l > 1e-5 ) transformed += d / l * ( ccCapR[ i ] - l ) * ccW;
+    }
+  }
+}`);
+  sh.vertexShader = v;
+  let f = sh.fragmentShader;
+  f = f.replace('#include <common>', `#include <common>
+varying float vCcLen; varying float vCcEdge;
+uniform float ccHairShine; uniform float ccRootTone; uniform float ccTipTone; uniform float ccGradLen; uniform float ccEdgeFade; uniform float ccHairline;
+#define ccRootT smoothstep( 0.0, ccGradLen, vCcLen )`);
+  f = insertAfter(f, '#include <map_fragment>', `
+diffuseColor.rgb *= mix( ccRootTone, ccTipTone, smoothstep( 0.0, ccGradLen, vCcLen ) );
+#ifdef USE_MAP
+{
+  // soft hairline: near bare skin the alpha is cut by the strand structure of the texture (brighter strands
+  // survive longer than the gaps between them), so the card edge breaks up into strands instead of a line
+  float ccFade = smoothstep( 0.0, ccEdgeFade, vCcEdge );
+  float ccStrand = clamp( dot( sampledDiffuseColor.rgb, vec3( 0.3333 ) ) * 2.0 - 1.0, - 1.0, 1.0 );
+  float ccKeep = clamp( ( ccFade - 0.5 ) * 2.4 + ccStrand * 0.9 + 0.5, 0.0, 1.0 );
+  diffuseColor.a *= mix( 1.0, ccKeep, ccHairline * ( 1.0 - ccFade * ccFade ) );
+}
+#endif`);
+  if (singlePass) f = insertAfter(f, '#include <roughnessmap_fragment>',
+    'roughnessFactor = mix( roughnessFactor, mix( 0.85, 0.28, ccHairShine ), 0.8 );');
+  sh.fragmentShader = f;
+}
+
 export function upgradeHair(old, geometry) {
   const m = toPhysical(old);
   m.specularIntensity = 0.55;
@@ -270,51 +320,7 @@ export function upgradeHair(old, geometry) {
   m.roughness = Math.max(m.roughness, 0.66);
   m.envMapIntensity = 0.45;
   const hasLen = !!geometry?.attributes?._cchair, hasEdge = !!geometry?.attributes?._ccedge;
-  m.onBeforeCompile = sh => {
-    Object.assign(sh.uniforms, hairUniforms);
-    let v = sh.vertexShader;
-    v = v.replace('#include <common>', `#include <common>
-${hasLen ? 'attribute float _cchair;' : ''} ${hasEdge ? 'attribute float _ccedge;' : ''}
-varying float vCcLen; varying float vCcEdge;
-uniform vec3 ccHairOffset; uniform float ccCollide; uniform float ccCollideFrom; uniform float ccCollideTo; uniform vec3 ccCapA[3]; uniform vec3 ccCapB[3]; uniform float ccCapR[3];`);
-    v = insertAfter(v, '#include <skinning_vertex>', `
-  vCcLen = ${hasLen ? '_cchair' : '0.1'};
-  vCcEdge = ${hasEdge ? '_ccedge' : '1.0'};
-  {
-    float ccLengthWeight = smoothstep( ccCollideFrom, ccCollideTo, vCcLen );
-    transformed += ccHairOffset * ccLengthWeight;
-    float ccW = ccCollide * ccLengthWeight;
-    if ( ccW > 0.0 ) {
-      for ( int i = 0; i < 3; i ++ ) {
-        vec3 ab = ccCapB[ i ] - ccCapA[ i ];
-        float h = clamp( dot( transformed - ccCapA[ i ], ab ) / max( dot( ab, ab ), 1e-8 ), 0.0, 1.0 );
-        vec3 d = transformed - ( ccCapA[ i ] + ab * h );
-        float l = length( d );
-        if ( l < ccCapR[ i ] && l > 1e-5 ) transformed += d / l * ( ccCapR[ i ] - l ) * ccW;
-      }
-    }
-  }`);
-    sh.vertexShader = v;
-    let f = sh.fragmentShader;
-    f = f.replace('#include <common>', `#include <common>
-varying float vCcLen; varying float vCcEdge;
-uniform float ccHairShine; uniform float ccRootTone; uniform float ccTipTone; uniform float ccGradLen; uniform float ccEdgeFade; uniform float ccHairline;`);
-    f = insertAfter(f, '#include <map_fragment>', `
-  diffuseColor.rgb *= mix( ccRootTone, ccTipTone, smoothstep( 0.0, ccGradLen, vCcLen ) );
-  #ifdef USE_MAP
-  {
-    // soft hairline: near bare skin the alpha is cut by the strand structure of the texture (brighter strands
-    // survive longer than the gaps between them), so the card edge breaks up into strands instead of a line
-    float ccFade = smoothstep( 0.0, ccEdgeFade, vCcEdge );
-    float ccStrand = clamp( dot( sampledDiffuseColor.rgb, vec3( 0.3333 ) ) * 2.0 - 1.0, - 1.0, 1.0 );
-    float ccKeep = clamp( ( ccFade - 0.5 ) * 2.4 + ccStrand * 0.9 + 0.5, 0.0, 1.0 );
-    diffuseColor.a *= mix( 1.0, ccKeep, ccHairline * ( 1.0 - ccFade * ccFade ) );
-  }
-  #endif`);
-    f = insertAfter(f, '#include <roughnessmap_fragment>',
-      'roughnessFactor = mix( roughnessFactor, mix( 0.85, 0.28, ccHairShine ), 0.8 );');
-    sh.fragmentShader = f;
-  };
+  m.onBeforeCompile = sh => patchHairShader(sh, { hasLen, hasEdge, singlePass: true });
   m.customProgramCacheKey = () => `ccHair2${hasLen}${hasEdge}`;
   m.needsUpdate = true;
   return m;

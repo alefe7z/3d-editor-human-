@@ -17,6 +17,7 @@ import { createEyeLife, applyMorphWeights } from './eyelife.js';
 import { APPEARANCE, CHEST_APPEARANCE, normalizeAppearance } from './appearance.js';
 import { upgradeSkin, upgradeHair, upgradeCornea, setSkinParams, setAppearance, updateHairMotion, hairUniforms, createHairCollider } from './materials.js';
 import { installPelvisMorphs, GLUTE_MOTION, FRONT_HIP_MOTION, EXTERNAL_MOTION } from './glutes.js';
+import { applyHairPasses, setHairLook, DEFAULT_HAIR_LOOK, HAIR_COLOR_STYLES, hairColorStyle, hairPassState, hairPassMaterials } from './hairpasses.js';
 import { createClothing } from './clothing.js';
 import { createClothRuntime } from './cloth/runtime.js';
 import { createExporter } from './export/exporter.js';
@@ -64,6 +65,9 @@ const I18N = {
     blink: 'Blink', look: 'Blik', lookOff: 'Lige frem', lookCamera: 'Følg kameraet', lookMouse: 'Følg musen',
     hairCollide: 'Hår undgår skuldrene',
     hideAllClothes: 'Skjul alt tøj midlertidigt', removeAllClothes: 'Tag alt tøj af',
+    hairPreset: 'Hårfarve-forslag', hairPresetNone: '(egen farve)', hairSoft: 'Bløde spidser',
+    hairDensity: 'Tæthed (tynde ↔ tykke hår)', hairStrandVar: 'Variation mellem hår', hairRootColor: 'Rodfarve',
+    hairRootMix: 'Rodfarve (styrke)',
     secClothes: 'Tøj', clothNone: 'Intet', clothPrimary: 'Farve', clothSecondary: 'Detalje',
     clothLoading: 'Indlæser tøj…', clothError: 'Kunne ikke indlæse tøjet',
     cloth: 'Stoffysik', wind: 'Vind',
@@ -102,6 +106,9 @@ const I18N = {
     blink: 'Blink', look: 'Gaze', lookOff: 'Straight ahead', lookCamera: 'Follow the camera', lookMouse: 'Follow the mouse',
     hairCollide: 'Hair avoids the shoulders',
     hideAllClothes: 'Temporarily hide all clothing', removeAllClothes: 'Remove all clothing',
+    hairPreset: 'Hair colour preset', hairPresetNone: '(own colour)', hairSoft: 'Soft tips',
+    hairDensity: 'Density (thin ↔ thick strands)', hairStrandVar: 'Strand variation', hairRootColor: 'Root colour',
+    hairRootMix: 'Root colour (strength)',
     secClothes: 'Clothes', clothNone: 'None', clothPrimary: 'Colour', clothSecondary: 'Detail',
     clothLoading: 'Loading clothes…', clothError: 'Could not load the clothes',
     cloth: 'Cloth physics', wind: 'Wind',
@@ -169,7 +176,9 @@ const DEFAULT_TOGGLES = {
 };
 // Body defaults (web/character.js defaultValues): male, every other slider at its default. ?sex=female|male|0|1.
 const DEFAULT_BODY = defaultValues();
-const values = { ...DEFAULT_TINTS, ...DEFAULT_TOGGLES, ...APPEARANCE, hair: null, ...DEFAULT_BODY };
+// Hair look (web/hairpasses.js, the vendored threejs-hair-shader): ?hairShader=0 keeps the plain single-pass hair.
+const HAIR_PASSES = params.get('hairShader') !== '0';
+const values = { ...DEFAULT_TINTS, ...DEFAULT_TOGGLES, ...DEFAULT_HAIR_LOOK, ...APPEARANCE, hair: null, ...DEFAULT_BODY };
 if (params.has('sex') && genderOfSex(params.get('sex')) !== null) values.gender = genderOfSex(params.get('sex'));
 let body = null, joints = null, animator = null, humanoid = null, parts = [], cloth = null, idleVary = null;
 const eyeLife = createEyeLife({ blink: values.blink });
@@ -196,6 +205,7 @@ function update() {
   for (const c of colliders.values()) c.calibrate(garments);
   hairUniforms.ccCollide.value = values.hairCollide ? 1 : 0;
   eyeLife.setBlinkEnabled(values.blink);
+  setHairLook(Object.fromEntries(Object.keys(DEFAULT_HAIR_LOOK).map(k => [k, values[k]])));
   if (cloth) {
     if (cloth.enabled !== values.cloth) cloth.setEnabled(values.cloth);
     cloth.setWind(values.wind);
@@ -206,7 +216,7 @@ function update() {
 // catchlight. They replace the glTF material by a MeshPhysicalMaterial with the same maps/colour/userData,
 // so the tint helpers keep working. A failing upgrade keeps the plain glTF material.
 async function upgradeMaterials(root, parser) {
-  const jobs = [];
+  const jobs = [], passJobs = [];
   root.traverse(o => {
     if (!o.isMesh) return;
     const mats = [].concat(o.material);
@@ -220,12 +230,20 @@ async function upgradeMaterials(root, parser) {
           jobs.push((ri !== undefined && parser ? parser.getDependency('texture', ri) : Promise.resolve(null))
             .catch(e => { console.warn('[viewer] skin region texture unavailable', e); return null; })
             .then(tex => swap(upgradeSkin(m, tex))));
-        } else if (role === 'hair') swap(upgradeHair(m, o.geometry));
+        } else if (role === 'hair') {
+          const base = upgradeHair(m, o.geometry);
+          swap(base);
+          if (HAIR_PASSES && !Array.isArray(o.material)) passJobs.push([o, base]);
+        }
         else if (m.name === 'Cornea') upgradeCornea(m);
       } catch (e) { console.warn('[viewer] material upgrade failed for', m.name, e); }
     });
   });
   await Promise.all(jobs);
+  // hair: the vendored two-pass shader on top of the upgraded material (a failure keeps the single pass)
+  for (const [o, base] of passJobs) {
+    try { applyHairPasses(o, base, { renderer }); } catch (e) { console.warn('[viewer] hair passes unavailable for', o.name, e); o.material = base; o.geometry.clearGroups(); }
+  }
 }
 
 // Render settings glTF cannot express. Alpha-masked cards (hair, brows, lashes) use alpha-to-coverage
@@ -236,6 +254,7 @@ function setupMaterials(root) {
     o.castShadow = true; o.receiveShadow = true;
     for (const m of [].concat(o.material)) {
       if (!m) continue;
+      if (m.userData?.hairPass) continue;            // passes are set up by web/hairpasses.js
       const role = materialRole(m.name);
       if (role === 'hair' || role === 'brows' || role === 'lashes') {
         m.alphaToCoverage = true; m.transparent = false; m.depthWrite = true; m.side = THREE.DoubleSide;
@@ -652,7 +671,7 @@ checkbox(secEyes, 'blink');
 const secLooks = section('secLooks');
 const surface = section('secSurface', false);
 for (const id of Object.keys(APPEARANCE)) {
-  if (!Object.hasOwn(CHEST_APPEARANCE, id) && id !== 'gluteMotion' && id !== 'frontHipMotion' && id !== 'externalMotion') slider(surface, { id, min: 0 });
+  if (!Object.hasOwn(CHEST_APPEARANCE, id) && id !== 'gluteMotion' && id !== 'frontHipMotion' && id !== 'externalMotion' && !(HAIR_PASSES && id === 'hairShine')) slider(surface, { id, min: 0 });
 }
 function colorInput(id, label) {
   const cl = document.createElement('label'); cl.textContent = label;
@@ -674,6 +693,46 @@ hairSel.onchange = () => { setHair(hairSel.value || null); };
 inputs.hair = { input: hairSel, show: x => { hairSel.value = x ?? ''; } };
 secLooks.append(hl, hairSel);
 const hairUI = [hl, hairSel, ...colorInput('hairColor', t('hairColor'))];
+// hair look (web/hairpasses.js): preset swatches from the vendored shader + live sliders for every style
+function rangeInput(parent, id, min, max, step = 0.01) {
+  const l = document.createElement('label'); l.textContent = t(id);
+  const v = Object.assign(document.createElement('span'), { className: 'v' });
+  l.append(v);
+  const r = Object.assign(document.createElement('input'), { type: 'range', min, max, step, value: values[id] });
+  r.setAttribute('aria-label', t(id));
+  r.dataset.slider = id;
+  const show = x => { r.value = x; v.textContent = (+x).toFixed(2); };
+  r.oninput = () => { values[id] = +r.value; show(values[id]); update(); };
+  inputs[id] = { input: r, show };
+  show(values[id]);
+  parent.append(l, r);
+  return [l, r];
+}
+const hairLookUI = [];
+if (HAIR_PASSES) {
+  const pl = document.createElement('label'); pl.textContent = t('hairPreset');
+  const ps = document.createElement('select');
+  ps.setAttribute('aria-label', t('hairPreset'));
+  ps.append(new Option(t('hairPresetNone'), ''));
+  for (const name of Object.keys(HAIR_COLOR_STYLES)) ps.append(new Option(name, name));
+  ps.onchange = () => { if (ps.value) window.__set('hairPreset', ps.value); };
+  inputs.hairPreset = { input: ps, show: x => { ps.value = x ?? ''; } };
+  secLooks.append(pl, ps);
+  hairLookUI.push(pl, ps);
+  const rl = document.createElement('label'); rl.textContent = t('hairRootColor');
+  const rc = Object.assign(document.createElement('input'), { type: 'color', value: values.hairRootColor });
+  rc.setAttribute('aria-label', t('hairRootColor'));
+  rc.oninput = () => { values.hairRootColor = rc.value; update(); };
+  inputs.hairRootColor = { input: rc, show: x => { rc.value = x; } };
+  secLooks.append(rl, rc);
+  hairLookUI.push(rl, rc);
+  hairLookUI.push(...rangeInput(secLooks, 'hairRootMix', 0, 1));
+  hairLookUI.push(...rangeInput(secLooks, 'hairShine', 0, 1));
+  hairLookUI.push(...rangeInput(secLooks, 'hairSoft', 0, 1));
+  hairLookUI.push(...rangeInput(secLooks, 'hairDensity', 0.3, 1.5));   // the MakeHuman alpha is ~binary: > 1.2 saturates
+  hairLookUI.push(...rangeInput(secLooks, 'hairStrandVar', 0, 0.8));
+  hairUI.push(...hairLookUI);
+}
 colorInput('browColor', t('browColor'));
 checkbox(secLooks, 'hairCollide');
 hairUI.push(secLooks.lastChild);
@@ -701,7 +760,8 @@ resetBtn.onclick = () => {
   setChestInspection(false);
   setAllClothingHidden(false);
   for (const s of SLIDERS) { values[s.id] = DEFAULT_BODY[s.id]; inputs[s.id]?.show(values[s.id]); }
-  for (const [k, v] of Object.entries({ ...DEFAULT_TINTS, ...DEFAULT_TOGGLES, ...APPEARANCE })) { values[k] = v; inputs[k]?.show(v); }
+  for (const [k, v] of Object.entries({ ...DEFAULT_TINTS, ...DEFAULT_TOGGLES, ...DEFAULT_HAIR_LOOK, ...APPEARANCE })) { values[k] = v; inputs[k]?.show(v); }
+  inputs.hairPreset?.show('');
   update();
   breast.reset();
   gluteSpring.reset();
@@ -724,6 +784,17 @@ ui.append(resetBtn);
 // window.__clothingState(). __set('sex' | 'gender', ...) also swaps worn underwear of the other sex (returns that promise).
 window.__set = (k, v) => {
   if (k === 'hair') return setHair(v);
+  if (k === 'hairPreset') {                      // a swatch of the vendored shader (HAIR_COLOR_STYLES name)
+    const st = hairColorStyle(v);
+    if (!st) { console.warn(`[viewer] __set('hairPreset', ${JSON.stringify(v)}): unknown preset`); return undefined; }
+    const mix = st.rootMode === 'multi' ? st.rootStrength : 0;
+    Object.assign(values, { hairColor: st.color, hairRootColor: st.rootColor, hairRootMix: mix,
+      hairDensity: st.density ?? values.hairDensity, hairStrandVar: st.seedVariation ?? values.hairStrandVar });
+    for (const key of ['hairColor', 'hairRootColor', 'hairRootMix', 'hairDensity', 'hairStrandVar']) inputs[key]?.show(values[key]);
+    inputs.hairPreset?.show(v);
+    update();
+    return undefined;
+  }
   if (k === 'outfit') return clothing.setOutfit(v);
   if (k === 'wear') return clothing.wear(v);
   if (k === 'takeOff') return clothing.takeOff(v);
@@ -751,6 +822,9 @@ window.__set = (k, v) => {
 window.__values = () => ({ ...JSON.parse(JSON.stringify(values)), sex: sexOf(values) });
 window.__clothingState = () => clothing.state();
 window.__hairUniforms = hairUniforms;           // tuning/tests (gradient, hairline fade, collision capsules)
+window.__hairPasses = hairPassState;           // hair passes per mesh (web/hairpasses.js)
+window.__hairPasses.materials = hairPassMaterials;
+window.__renderer = renderer;                  // tests: compiled programs (renderer.info.programs)
 window.__hairState = () => ({ style: values.hair, pending: !!hairPending, loaded: [...hairCache.keys()],
   styles: hairManifest?.styles.map(s => s.id) ?? [],
   collide: { enabled: values.hairCollide, colliders: [...colliders].filter(([m]) => m.visible).map(([, c]) => ({ radii: c.radii(), weighted: c.weightedVertices })) } });

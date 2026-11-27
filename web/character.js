@@ -209,6 +209,9 @@ export function applyTint(material, hex) {
   material.color.set(hex);
   const g = Number(material.userData?.tint?.gain);
   if (g > 0 && g !== 1) material.color.multiplyScalar(g);
+  // a render pass standing in for a textured material (web/hairpasses.js) keeps that material for export
+  const src = material.ccExportSource;
+  if (src && src !== material) applyTint(src, hex);
 }
 
 export function applySkinColor(mesh, hex) {
