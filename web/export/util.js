@@ -324,5 +324,5 @@ export function collapseConstantTrack(times, values, itemSize, eps = 1e-7) {
 
 /** Morph names kept as shape keys in baked mode (dynamic, not slider-owned). */
 export function dynamicMorph(name, { breasts = false } = {}) {
-  return /^(blink_|look_|dyn_glute_|dyn_front_hip)/.test(name) || (breasts && /^dyn_breast_/.test(name));
+  return /^(blink_|look_|dyn_glute_|dyn_front_hip|dyn_external_anatomy)/.test(name) || (breasts && /^dyn_breast_/.test(name));
 }

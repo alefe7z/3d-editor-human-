@@ -3,6 +3,7 @@ import { BufferAttribute, BufferGeometry } from 'three';
 
 export const GLUTE_MOTION = 'dyn_glute_vertical';
 export const FRONT_HIP_MOTION = 'dyn_front_hip';
+export const EXTERNAL_MOTION = 'dyn_external_anatomy';
 const installed = new WeakSet();
 
 function smooth(lo, hi, value) {
@@ -11,7 +12,7 @@ function smooth(lo, hi, value) {
 }
 
 /** Rest-space displacement. The bundled human faces +Z and uses metres. */
-export function pelvisDeltas(x, y, z) {
+export function pelvisDeltas(x, y, z, external = false) {
   const side = Math.abs(x);
   const back = 1 - smooth(-0.055, 0.012, z);
   const vertical = smooth(0.66, 0.77, y) * (1 - smooth(0.88, 1.01, y));
@@ -30,14 +31,32 @@ export function pelvisDeltas(x, y, z) {
     gluteSoftness: [0, -0.017 * area * (1 - smooth(0.78, 0.90, y)), -0.022 * area * (0.7 - round)],
     [GLUTE_MOTION]: [0, 0.009 * fullness, 0],
     [FRONT_HIP_MOTION]: [0, 0.010 * front, 0.005 * front],
+    ...(external ? externalDeltas(x, y, z) : {}),
   };
 }
 
-export function installPelvisMorphs(mesh) {
+// Low-resolution external anatomy of the bundled body in its neutral rest pose.
+function externalDeltas(x, y, z) {
+  const side = Math.abs(x);
+  const anterior = smooth(0.014, 0.054, z);
+  const vertical = smooth(0.755, 0.783, y) * (1 - smooth(0.807, 0.839, y));
+  const contour = anterior * vertical * (1 - smooth(0.022, 0.062, side));
+  const pubic = anterior * smooth(0.793, 0.824, y) * (1 - smooth(0.848, 0.890, y))
+    * (1 - smooth(0.023, 0.073, side));
+  const fold = Math.exp(-(((side - 0.014) / 0.010) ** 2));
+  return {
+    externalFullness: [0, 0, 0.011 * pubic],
+    externalWidth: [x * 0.38 * contour, 0, 0],
+    externalFoldRelief: [0, 0, 0.006 * contour * fold],
+    [EXTERNAL_MOTION]: [0, 0.0025 * contour, 0.001 * contour],
+  };
+}
+
+export function installPelvisMorphs(mesh, { external = false } = {}) {
   const geometry = mesh.geometry;
   const position = geometry?.attributes.position;
   if (installed.has(geometry) || !position || !geometry.morphTargetsRelative) return;
-  const deltas = Object.fromEntries(Object.keys(pelvisDeltas(0, 0, 0))
+  const deltas = Object.fromEntries(Object.keys(pelvisDeltas(0, 0, 0, external))
     .map(name => [name, new Float32Array(position.count * 3)]));
   const base = new Float32Array(position.count * 3);
   let affected = false;
@@ -45,7 +64,7 @@ export function installPelvisMorphs(mesh) {
     const x = position.getX(i), y = position.getY(i), z = position.getZ(i);
     base.set([x, y, z], 3 * i);
     if (y <= 0.66 || y >= 1.10 || Math.abs(x) >= 0.21) continue;
-    for (const [name, delta] of Object.entries(pelvisDeltas(x, y, z))) {
+    for (const [name, delta] of Object.entries(pelvisDeltas(x, y, z, external))) {
       deltas[name].set(delta, 3 * i);
       affected ||= delta.some(value => value !== 0);
     }

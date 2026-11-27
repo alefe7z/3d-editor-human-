@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import {
-  SLIDERS, GLUTE_SLIDERS, BREAST_SIZE_PRESETS, BREAST_SHAPE_PRESETS, applySliders, applySkeleton, validateMorphs, applyTints, characterMeshes, bindToSkeleton, materialRole,
+  SLIDERS, GLUTE_SLIDERS, EXTERNAL_SLIDERS, BREAST_SIZE_PRESETS, BREAST_SHAPE_PRESETS, applySliders, applySkeleton, validateMorphs, applyTints, characterMeshes, bindToSkeleton, materialRole,
   sliderInfluences, SEXES, sexOf, genderOfSex, defaultValues, breastGate, extendedBreastSize,
 } from './character.js';
 import { createBreastPhysics, breastMotionScale, combineSupport, zeroWeights, DYN_MORPHS } from './breastphysics.js';
@@ -15,7 +15,7 @@ import { createIdleVariation } from './animation/idlevary.js';
 import { createEyeLife, applyMorphWeights } from './eyelife.js';
 import { APPEARANCE, CHEST_APPEARANCE, normalizeAppearance } from './appearance.js';
 import { upgradeSkin, upgradeHair, upgradeCornea, setSkinParams, setAppearance, updateHairMotion, hairUniforms, createHairCollider } from './materials.js';
-import { installPelvisMorphs, GLUTE_MOTION, FRONT_HIP_MOTION } from './glutes.js';
+import { installPelvisMorphs, GLUTE_MOTION, FRONT_HIP_MOTION, EXTERNAL_MOTION } from './glutes.js';
 import { createClothing } from './clothing.js';
 import { createClothRuntime } from './cloth/runtime.js';
 import { createExporter } from './export/exporter.js';
@@ -32,6 +32,7 @@ const I18N = {
     sizePreset: 'Størrelsesvalg', shapePreset: 'Formvalg', choosePreset: 'Vælg en forudindstilling',
     small: 'Lille', medium: 'Mellem', large: 'Stor', full: 'Fyldig', rounded: 'Rund', sloped: 'Dråbeformet', projected: 'Fremspringende', wideSet: 'Bred afstand',
     inspectChest: 'Skjul tøj over brystet', chestFront: 'Forfra', chestSide: 'Fra siden', resetChest: 'Nulstil brystindstillinger',
+    secExternal: 'Ydre anatomi', externalFullness: 'Fylde over skambenet', externalWidth: 'Konturbredde', externalFoldRelief: 'Foldernes relief', externalMotion: 'Bevægelsesstyrke',
     secGlutes: 'Balder og hofter', gluteVolume: 'Volumen', gluteProjection: 'Fremspring', gluteWidth: 'Bredde', gluteRoundness: 'Rundhed', gluteLift: 'Løft', gluteSoftness: 'Blød kontur', gluteMotion: 'Bevægelse bagpå', frontHipMotion: 'Bevægelse foran', hipFront: 'Forfra', glutePreview: 'Vis bevægelse i gang', gluteBack: 'Bagfra', gluteSide: 'Fra siden',
     secBreast: 'Bryster', breastSize: 'Størrelse', breastSizeExact: 'Indtast størrelse (også uden for skyderens område)', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
     breastSpacing: 'Afstand', breastProjection: 'Form (rund ↔ spids)', breastPhysics: 'Brystfysik', breastMotion: 'Bevægelsesstyrke', previewMotion: 'Forhåndsvis brystbevægelse',
@@ -64,6 +65,7 @@ const I18N = {
     sizePreset: 'Size preset', shapePreset: 'Shape preset', choosePreset: 'Choose a preset',
     small: 'Small', medium: 'Medium', large: 'Large', full: 'Full volume', rounded: 'Rounded', sloped: 'Sloped', projected: 'Projected', wideSet: 'Wide-set',
     inspectChest: 'Hide chest garments for inspection', chestFront: 'Front view', chestSide: 'Side view', resetChest: 'Reset chest settings',
+    secExternal: 'External anatomy', externalFullness: 'Pubic fullness', externalWidth: 'Contour width', externalFoldRelief: 'Fold relief', externalMotion: 'Motion intensity',
     secGlutes: 'Glutes and hips', gluteVolume: 'Volume', gluteProjection: 'Projection', gluteWidth: 'Width', gluteRoundness: 'Roundness', gluteLift: 'Lift', gluteSoftness: 'Soft contour', gluteMotion: 'Rear motion intensity', frontHipMotion: 'Front hip motion intensity', hipFront: 'Front view', glutePreview: 'Preview motion while walking', gluteBack: 'Back view', gluteSide: 'Side view',
     secBreast: 'Chest', breastSize: 'Size', breastSizeExact: 'Enter size (values outside the slider range allowed)', breastFirmness: 'Firmness (lift)', breastHeight: 'Position (low ↔ high)',
     breastSpacing: 'Spacing', breastProjection: 'Shape (round ↔ pointed)', breastPhysics: 'Breast physics', breastMotion: 'Motion intensity', previewMotion: 'Preview chest motion',
@@ -277,7 +279,7 @@ loader.load('./base_body.glb', async g => {
   if (!body) g.scene.traverse(o => { if (o.isSkinnedMesh && !body) body = o; });   // old GLBs
   if (!body) { setStatus(t('noBody'), true); return; }
   body.frustumCulled = false;
-  installPelvisMorphs(body);
+  installPelvisMorphs(body, { external: true });
   parts = [body];
   for (const m of meshes) attachPart(m);
   await upgradeMaterials(g.scene, g.parser);
@@ -576,6 +578,7 @@ secBreast.addEventListener('toggle', () => {
 function syncSexUI() {
   const female = sexOf(values) === 'female';
   secBreast.hidden = !female;
+  secExternal.hidden = breastGate(values) !== 1;
   previewMotionLabel.hidden = breastGate(values) < 1;
   if (previewMotionLabel.hidden || !values.breastPhysics) previewMotionToggle.checked = false;
   inspectChestLabel.hidden = breastGate(values) < 1;
@@ -594,16 +597,25 @@ for (const setting of GLUTE_SLIDERS) slider(secGlutes, setting);
 slider(secGlutes, { id: 'gluteMotion', min: 0 });
 slider(secGlutes, { id: 'frontHipMotion', min: 0 });
 const glutePreviewButton = Object.assign(document.createElement('button'), { type: 'button', textContent: t('glutePreview') });
-glutePreviewButton.onclick = () => {
+function previewPelvisMotion() {
   if (!animator) return;
   gluteSpring.reset();
   frontHipSpring.reset();
+  externalSpring.reset();
   animSel.value = 'walk';
   animSel.onchange();
   animator.resume();
   syncAnimUI();
-};
+}
+glutePreviewButton.onclick = previewPelvisMotion;
 secGlutes.append(glutePreviewButton);
+const secExternal = section('secExternal', false);
+secExternal.hidden = true;
+for (const setting of EXTERNAL_SLIDERS) slider(secExternal, setting);
+slider(secExternal, { id: 'externalMotion', min: 0 });
+const externalPreviewButton = Object.assign(document.createElement('button'), { type: 'button', textContent: t('glutePreview') });
+externalPreviewButton.onclick = previewPelvisMotion;
+secExternal.append(externalPreviewButton);
 const secFace = section('secFace', !matchMedia('(max-width:600px)').matches);
 for (const s of SLIDERS.filter(x => x.group === 'face')) slider(secFace, s);
 const secEyes = section('secEyes');
@@ -621,7 +633,7 @@ checkbox(secEyes, 'blink');
 const secLooks = section('secLooks');
 const surface = section('secSurface', false);
 for (const id of Object.keys(APPEARANCE)) {
-  if (!Object.hasOwn(CHEST_APPEARANCE, id) && id !== 'gluteMotion' && id !== 'frontHipMotion') slider(surface, { id, min: 0 });
+  if (!Object.hasOwn(CHEST_APPEARANCE, id) && id !== 'gluteMotion' && id !== 'frontHipMotion' && id !== 'externalMotion') slider(surface, { id, min: 0 });
 }
 function colorInput(id, label) {
   const cl = document.createElement('label'); cl.textContent = label;
@@ -675,6 +687,7 @@ resetBtn.onclick = () => {
   breast.reset();
   gluteSpring.reset();
   frontHipSpring.reset();
+  externalSpring.reset();
   if (hairManifest) setHair(hairManifest.default);
   clothing.reset();                            // default underwear of the sex + default garment colours
   cloth?.reset();
@@ -921,6 +934,7 @@ function buildClothUI() {
 const breast = createBreastPhysics();
 const gluteSpring = createBreastPhysics({ frequencyHz: 2.8, dampingRatio: 0.62 });
 const frontHipSpring = createBreastPhysics({ frequencyHz: 3.0, dampingRatio: 0.72 });
+const externalSpring = createBreastPhysics({ frequencyHz: 3.2, dampingRatio: 0.76 });
 const glutePelvis = new THREE.Vector3();
 const restRotation = [0, 0, 0, 1];
 function updatePelvisMotion(dt) {
@@ -930,6 +944,9 @@ function updatePelvisMotion(dt) {
   const position = glutePelvis.toArray();
   const rear = gluteSpring.step(dt, position, restRotation, values.gluteMotion);
   const front = frontHipSpring.step(dt, position, restRotation, values.frontHipMotion);
+  const external = externalSpring.step(dt, position, restRotation, breastGate(values) === 1 ? values.externalMotion : 0);
+  const externalIndex = body.morphTargetDictionary?.[EXTERNAL_MOTION];
+  if (externalIndex !== undefined) body.morphTargetInfluences[externalIndex] = external[DYN_MORPHS.up] - external[DYN_MORPHS.down];
   for (const mesh of parts) {
     const rearIndex = mesh.morphTargetDictionary?.[GLUTE_MOTION];
     const frontIndex = mesh.morphTargetDictionary?.[FRONT_HIP_MOTION];

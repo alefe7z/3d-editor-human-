@@ -33,6 +33,12 @@ and affects the lower abdomen and the front of fitted garments. Use
 **Front view** to inspect it while walking. The secondary motion runs in the editor. A GLB
 can retain its morph target for a runtime driver.
 
+**External anatomy** on the adult female body provides localized controls for
+pubic fullness, contour width and surface fold relief. These controls use the
+original body's mesh resolution. The motion slider drives a small damped
+deformation during pelvis movement. Static controls are saved and exported.
+The dynamic deformer's target can be retained in GLB for a runtime driver.
+
 ## Use the creator from a web host
 
 Use `python tools/serve_offline.py` to serve the editor and bundled assets
