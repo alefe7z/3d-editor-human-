@@ -543,7 +543,14 @@ export function createExporter(deps) {
 
   /** Queued: one export at a time. */
   function exportQueued(options, onProgress) {
-    const run = () => exportGlb(options, onProgress);
+    const run = async () => {
+      const restoreInspectionControl = deps.endChestInspection?.();
+      try {
+        return await exportGlb(options, onProgress);
+      } finally {
+        restoreInspectionControl?.();
+      }
+    };
     busy = (busy ?? Promise.resolve()).catch(() => {}).then(run);
     return busy;
   }

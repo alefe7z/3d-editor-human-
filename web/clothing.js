@@ -58,6 +58,13 @@ export function createClothing(opts) {
   let catalog = null, token = 0, pending = null, bodyIndex = null;
   const cache = new Map();                          // id -> { meshes, materials }
   const worn = [];
+  let inspectingChest = false;
+  const chestSlots = new Set(['bra', 'top', 'outerwear']);
+  const visibleOutfit = () => worn.filter(id => {
+    if (!inspectingChest) return true;
+    const garment = item(id);
+    return ![garment?.slot, ...(garment?.occupies ?? [])].some(slot => chestSlots.has(slot));
+  });
   const colors = {};                                // id -> { primary, secondary }
   const ui = { selects: {}, primary: {}, secondary: {}, rows: [] };
 
@@ -103,27 +110,38 @@ export function createClothing(opts) {
     }
   }
 
-  function applyZones() {
+  function applyVisibility() {
+    const active = visibleOutfit();
+    for (const [id, rec] of cache) {
+      for (const m of rec.meshes) {
+        m.visible = active.includes(id);
+        m.userData.ccCovered = false;
+      }
+    }
+    applyZones(active);
+  }
+
+  function applyZones(active) {
     const body = getBody();
     if (!body || !catalog) return;
     const geo = body.geometry, attr = geo.attributes[(catalog.bodyZoneAttribute || '_CCZONE').toLowerCase()];
     if (!geo.index || !attr) return;
     if (!bodyIndex) bodyIndex = geo.index.array.slice();
-    const arr = filterIndex(bodyIndex, attr, hiddenZoneMask(catalog, worn));
+    const arr = filterIndex(bodyIndex, attr, hiddenZoneMask(catalog, active));
     geo.setIndex(new THREE.BufferAttribute(arr, 1));
     // the cloth body layer: the skin hidden only by skin-tight underwear still counts (clothing_rules.js
     // layerHiddenZoneMask; read by web/cloth/runtime.js syncLayers, which rebuilds when the index above changes)
-    body.userData.ccLayerIndex = filterIndex(bodyIndex, attr, layerHiddenZoneMask(catalog, worn));
+    body.userData.ccLayerIndex = filterIndex(bodyIndex, attr, layerHiddenZoneMask(catalog, active));
     // garments under a worn higher layer (T-shirt under the coat) drop the triangles it fully covers
     // (vertex attribute _CCZONE of the garment; skinning differences would otherwise poke through)
     // Underwear carries the zone bits of every garment that covers it: a fully covered item keeps no triangle and
     // its mesh is hidden (not drawn, not skinned; it stays worn and comes back when the cover is taken off).
-    for (const id of worn) {
+    for (const id of active) {
       for (const m of cache.get(id)?.meshes ?? []) {
         const g = m.geometry, za = g.attributes._cczone;
         if (!za || !g.index) continue;
         if (!m.userData.ccIndex) m.userData.ccIndex = g.index.array.slice();
-        const idx = filterIndex(m.userData.ccIndex, za, coveringZoneMask(catalog, worn, id));
+        const idx = filterIndex(m.userData.ccIndex, za, coveringZoneMask(catalog, active, id));
         g.setIndex(new THREE.BufferAttribute(idx, 1));
         m.userData.ccCovered = idx.length === 0;
         if (idx.length === 0) m.visible = false;
@@ -174,10 +192,10 @@ export function createClothing(opts) {
       if (my !== token) return;
       for (const [id, rec] of cache) {
         const on = worn.includes(id);
-        for (const m of rec.meshes) { m.visible = on; if (on) addPart(m); }
+        for (const m of rec.meshes) if (on) addPart(m);
         if (on) applyColors(id);
       }
-      applyZones();
+      applyVisibility();
       onChange();
       if (statusEl() === t('clothLoading')) setStatus('');
     }).catch(e => {
@@ -253,6 +271,13 @@ export function createClothing(opts) {
       await setOutfit(initial);                    // null: catalog default + default underwear
     },
     setOutfit, wear, takeOff, setColor, setSex, setUnderwear,
+    setChestInspection(enabled) {
+      const next = Boolean(enabled);
+      if (next === inspectingChest) return;
+      inspectingChest = next;
+      applyVisibility();
+      onChange();
+    },
     /** Worn ids (logical: covered underwear is still worn). */
     worn: () => [...worn],
     reset() {
@@ -264,9 +289,9 @@ export function createClothing(opts) {
     state() {
       const body = getBody();
       return {
-        outfit: [...worn], pending: !!pending, loaded: [...cache.keys()], items: catalog?.items.map(i => i.id) ?? [],
+        outfit: [...worn], inspectingChest, pending: !!pending, loaded: [...cache.keys()], items: catalog?.items.map(i => i.id) ?? [],
         colors: JSON.parse(JSON.stringify(colors)),
-        hiddenZones: catalog ? Object.keys(catalog.bodyZones).filter(z => hiddenZoneMask(catalog, worn) & catalog.bodyZones[z]) : [],
+        hiddenZones: catalog ? Object.keys(catalog.bodyZones).filter(z => hiddenZoneMask(catalog, visibleOutfit()) & catalog.bodyZones[z]) : [],
         bodyTriangles: body?.geometry.index ? body.geometry.index.count / 3 : null,
         bodyTrianglesFull: bodyIndex ? bodyIndex.length / 3 : (body?.geometry.index ? body.geometry.index.count / 3 : null),
         visibleMeshes: [...cache.values()].flatMap(r => r.meshes).filter(m => m.visible).map(m => m.name),

@@ -28,6 +28,7 @@ const I18N = {
     secSurface: 'Hud- og hårdetaljer', skinPores: 'Porer', skinRoughness: 'Hudens ruhed', skinScattering: 'Lysspredning', skinFuzz: 'Dun', skinWrinkles: 'Rynker', hairShine: 'Hårets glans', hairMotion: 'Hårbevægelse',
     sex: 'Køn', sexMale: 'Mand', sexFemale: 'Kvinde',
     areolaPigmentation: 'Areolapigmentering', areolaCoverage: 'Pigmentets udstrækning', nippleRelief: 'Brystvortens relief',
+    inspectChest: 'Skjul tøj over brystet',
     secBreast: 'Bryster', breastSize: 'Størrelse', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
     breastSpacing: 'Afstand', breastProjection: 'Form (rund ↔ spids)', breastPhysics: 'Brystfysik',
     age: 'Alder (barn ↔ gammel)', height: 'Højde', weight: 'Vægt',
@@ -55,6 +56,7 @@ const I18N = {
     secSurface: 'Skin and hair detail', skinPores: 'Pores', skinRoughness: 'Skin roughness', skinScattering: 'Skin scattering', skinFuzz: 'Skin fuzz', skinWrinkles: 'Wrinkle detail', hairShine: 'Hair shine', hairMotion: 'Hair motion',
     sex: 'Sex', sexMale: 'Male', sexFemale: 'Female',
     areolaPigmentation: 'Areola pigmentation', areolaCoverage: 'Pigment coverage', nippleRelief: 'Nipple surface relief',
+    inspectChest: 'Hide chest garments for inspection',
     secBreast: 'Chest', breastSize: 'Size', breastFirmness: 'Firmness (lift)', breastHeight: 'Position (low ↔ high)',
     breastSpacing: 'Spacing', breastProjection: 'Shape (round ↔ pointed)', breastPhysics: 'Breast physics',
     age: 'Age (child ↔ old)', height: 'Height', weight: 'Weight',
@@ -276,6 +278,11 @@ loader.load('./base_body.glb', async g => {
   const exporter = createExporter({
     lang, ui, before: resetBtn, setStatus, getBody: () => body, getParts: () => parts, values, bodyValues,
     getHumanoid: () => humanoid, getAnimator: () => animator, clothing, getHairManifest: () => hairManifest,
+    endChestInspection: () => {
+      setChestInspection(false);
+      inspectChestToggle.disabled = true;
+      return () => { inspectChestToggle.disabled = false; };
+    },
     set: (k, v) => window.__set(k, v),
   });
   update();                                   // first applySkeleton at rest
@@ -461,9 +468,23 @@ const secBreast = section('secBreast');
 for (const s of SLIDERS.filter(x => x.group === 'breast')) slider(secBreast, s);
 checkbox(secBreast, 'breastPhysics');
 for (const id of Object.keys(CHEST_APPEARANCE)) slider(secBreast, { id, min: 0 });
+const inspectChestLabel = Object.assign(document.createElement('label'), { className: 'check', hidden: true });
+const inspectChestToggle = Object.assign(document.createElement('input'), { type: 'checkbox' });
+inspectChestLabel.append(inspectChestToggle, document.createTextNode(` ${t('inspectChest')}`));
+secBreast.append(inspectChestLabel);
+function setChestInspection(enabled) {
+  inspectChestToggle.checked = Boolean(enabled) && breastGate(values) === 1;
+  clothing.setChestInspection(inspectChestToggle.checked);
+}
+inspectChestToggle.onchange = () => setChestInspection(inspectChestToggle.checked);
+secBreast.addEventListener('toggle', () => {
+  if (!secBreast.open) setChestInspection(false);
+});
 function syncSexUI() {
   const female = sexOf(values) === 'female';
   secBreast.hidden = !female;
+  inspectChestLabel.hidden = breastGate(values) < 1;
+  if (inspectChestLabel.hidden && inspectChestToggle.checked) setChestInspection(false);
   inputs.gender?.show(values.gender);
 }
 const secFace = section('secFace', !matchMedia('(max-width:600px)').matches);
@@ -512,6 +533,7 @@ const secClothes = section('secClothes');      // filled by clothing.init() once
 
 const resetBtn = Object.assign(document.createElement('button'), { type: 'button', textContent: t('reset') });
 resetBtn.onclick = () => {
+  setChestInspection(false);
   for (const s of SLIDERS) { values[s.id] = DEFAULT_BODY[s.id]; inputs[s.id]?.show(values[s.id]); }
   for (const [k, v] of Object.entries({ ...DEFAULT_TINTS, ...DEFAULT_TOGGLES, ...APPEARANCE })) { values[k] = v; inputs[k]?.show(v); }
   update();
