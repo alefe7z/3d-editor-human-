@@ -544,7 +544,7 @@ export function createExporter(deps) {
   /** Queued: one export at a time. */
   function exportQueued(options, onProgress) {
     const run = async () => {
-      const restoreInspectionControl = deps.endChestInspection?.();
+      const restoreInspectionControl = deps.endClothingInspection?.();
       try {
         return await exportGlb(options, onProgress);
       } finally {

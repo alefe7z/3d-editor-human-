@@ -48,6 +48,7 @@ const I18N = {
     lips: 'Læber', mouthWidth: 'Mundbredde', earSize: 'Ørestørrelse', forehead: 'Pandehøjde',
     blink: 'Blink', look: 'Blik', lookOff: 'Lige frem', lookCamera: 'Følg kameraet', lookMouse: 'Følg musen',
     hairCollide: 'Hår undgår skuldrene',
+    hideAllClothes: 'Skjul alt tøj midlertidigt', removeAllClothes: 'Tag alt tøj af',
     secClothes: 'Tøj', clothNone: 'Intet', clothPrimary: 'Farve', clothSecondary: 'Detalje',
     clothLoading: 'Indlæser tøj…', clothError: 'Kunne ikke indlæse tøjet',
     cloth: 'Stoffysik', wind: 'Vind',
@@ -76,6 +77,7 @@ const I18N = {
     lips: 'Lips', mouthWidth: 'Mouth width', earSize: 'Ear size', forehead: 'Forehead height',
     blink: 'Blink', look: 'Gaze', lookOff: 'Straight ahead', lookCamera: 'Follow the camera', lookMouse: 'Follow the mouse',
     hairCollide: 'Hair avoids the shoulders',
+    hideAllClothes: 'Temporarily hide all clothing', removeAllClothes: 'Remove all clothing',
     secClothes: 'Clothes', clothNone: 'None', clothPrimary: 'Colour', clothSecondary: 'Detail',
     clothLoading: 'Loading clothes…', clothError: 'Could not load the clothes',
     cloth: 'Cloth physics', wind: 'Wind',
@@ -278,10 +280,11 @@ loader.load('./base_body.glb', async g => {
   const exporter = createExporter({
     lang, ui, before: resetBtn, setStatus, getBody: () => body, getParts: () => parts, values, bodyValues,
     getHumanoid: () => humanoid, getAnimator: () => animator, clothing, getHairManifest: () => hairManifest,
-    endChestInspection: () => {
+    endClothingInspection: () => {
       setChestInspection(false);
-      inspectChestToggle.disabled = true;
-      return () => { inspectChestToggle.disabled = false; };
+      setAllClothingHidden(false);
+      inspectChestToggle.disabled = hideAllClothesToggle.disabled = true;
+      return () => { inspectChestToggle.disabled = hideAllClothesToggle.disabled = false; };
     },
     set: (k, v) => window.__set(k, v),
   });
@@ -529,11 +532,28 @@ const hairUI = [hl, hairSel, ...colorInput('hairColor', t('hairColor'))];
 colorInput('browColor', t('browColor'));
 checkbox(secLooks, 'hairCollide');
 hairUI.push(secLooks.lastChild);
-const secClothes = section('secClothes');      // filled by clothing.init() once clothing.json is loaded
+const secClothes = section('secClothes');      // catalog controls are added by clothing.init()
+const hideAllClothesLabel = Object.assign(document.createElement('label'), { className: 'check' });
+const hideAllClothesToggle = Object.assign(document.createElement('input'), { type: 'checkbox' });
+hideAllClothesLabel.append(hideAllClothesToggle, document.createTextNode(` ${t('hideAllClothes')}`));
+const removeAllClothesButton = Object.assign(document.createElement('button'), {
+  type: 'button', textContent: t('removeAllClothes'),
+});
+function setAllClothingHidden(enabled) {
+  hideAllClothesToggle.checked = Boolean(enabled);
+  clothing.setAllHidden(hideAllClothesToggle.checked);
+}
+hideAllClothesToggle.onchange = () => setAllClothingHidden(hideAllClothesToggle.checked);
+removeAllClothesButton.onclick = async () => {
+  await clothing.removeAll();
+  setAllClothingHidden(false);
+};
+secClothes.append(hideAllClothesLabel, removeAllClothesButton);
 
 const resetBtn = Object.assign(document.createElement('button'), { type: 'button', textContent: t('reset') });
 resetBtn.onclick = () => {
   setChestInspection(false);
+  setAllClothingHidden(false);
   for (const s of SLIDERS) { values[s.id] = DEFAULT_BODY[s.id]; inputs[s.id]?.show(values[s.id]); }
   for (const [k, v] of Object.entries({ ...DEFAULT_TINTS, ...DEFAULT_TOGGLES, ...APPEARANCE })) { values[k] = v; inputs[k]?.show(v); }
   update();

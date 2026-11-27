@@ -58,9 +58,9 @@ export function createClothing(opts) {
   let catalog = null, token = 0, pending = null, bodyIndex = null;
   const cache = new Map();                          // id -> { meshes, materials }
   const worn = [];
-  let inspectingChest = false;
+  let inspectingChest = false, hidingAll = false;
   const chestSlots = new Set(['bra', 'top', 'outerwear']);
-  const visibleOutfit = () => worn.filter(id => {
+  const visibleOutfit = () => hidingAll ? [] : worn.filter(id => {
     if (!inspectingChest) return true;
     const garment = item(id);
     return ![garment?.slot, ...(garment?.occupies ?? [])].some(slot => chestSlots.has(slot));
@@ -278,6 +278,17 @@ export function createClothing(opts) {
       applyVisibility();
       onChange();
     },
+    setAllHidden(enabled) {
+      const next = Boolean(enabled);
+      if (next === hidingAll) return;
+      hidingAll = next;
+      applyVisibility();
+      onChange();
+    },
+    removeAll() {
+      underwearDefault = false;
+      return applyOutfit([]);
+    },
     /** Worn ids (logical: covered underwear is still worn). */
     worn: () => [...worn],
     reset() {
@@ -289,7 +300,7 @@ export function createClothing(opts) {
     state() {
       const body = getBody();
       return {
-        outfit: [...worn], inspectingChest, pending: !!pending, loaded: [...cache.keys()], items: catalog?.items.map(i => i.id) ?? [],
+        outfit: [...worn], inspectingChest, hidingAll, pending: !!pending, loaded: [...cache.keys()], items: catalog?.items.map(i => i.id) ?? [],
         colors: JSON.parse(JSON.stringify(colors)),
         hiddenZones: catalog ? Object.keys(catalog.bodyZones).filter(z => hiddenZoneMask(catalog, visibleOutfit()) & catalog.bodyZones[z]) : [],
         bodyTriangles: body?.geometry.index ? body.geometry.index.count / 3 : null,
