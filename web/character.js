@@ -32,7 +32,7 @@ export const SLIDERS = [
     ['mouthWidth', 'mouth_width', 'Mundbredde'], ['earSize', 'ear_size', 'Ørestørrelse'],
     ['forehead', 'forehead', 'Pande', 0.6],
   ].map(([id, stem, label, scale]) => ({ id, group: 'face', label, neg: `face_${stem}_decr`, pos: `face_${stem}_incr`, ...(scale ? { scale } : {}) })),
-  { id: 'breastSize',       group: 'breast', label: 'Størrelse', neg: 'breast_cup_min',  pos: 'breast_cup_max',  default: 0.35 },
+  { id: 'breastSize',       group: 'breast', label: 'Størrelse', neg: 'breast_cup_min',  pos: 'breast_cup_max',  default: 0.35, extended: true },
   { id: 'breastFirmness',   group: 'breast', label: 'Fasthed',   neg: 'breast_firm_min', pos: 'breast_firm_max', default: 0.45 },
   { id: 'breastHeight',     group: 'breast', label: 'Højde',     neg: 'bdet_breast_height_decr', pos: 'bdet_breast_height_incr', default: 0 },
   { id: 'breastSpacing',    group: 'breast', label: 'Afstand',   neg: 'bdet_breast_dist_decr',   pos: 'bdet_breast_dist_incr',   default: 0 },
@@ -102,6 +102,12 @@ export const CORRECTIVES = CORR_AXES.flatMap(([a, b]) => {
 });
 
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+/** Morph weights are sent to the GPU and stored in GLB as float32 values. */
+export function extendedBreastSize(value) {
+  const number = typeof value === 'number' || (typeof value === 'string' && value.trim()) ? Number(value) : NaN;
+  return Number.isFinite(Math.fround(number)) ? number : null;
+}
+
 function sideScale(s, side) {
   const sc = s.scale;
   if (sc == null) return 1;
@@ -115,7 +121,8 @@ export function sliderInfluences(values) {
   const out = {};
   const gate = breastGate(values);
   for (const s of SLIDERS) {
-    const v = clamp(Number(values?.[s.id]) || 0, -1, 1);
+    const raw = values?.[s.id];
+    const v = s.extended ? (extendedBreastSize(raw) ?? 0) : clamp(Number(raw) || 0, -1, 1);
     const g = s.group === 'breast' ? gate : 1;
     out[s.neg] = v < 0 ? -v * sideScale(s, 'neg') * g : 0;
     out[s.pos] = v > 0 ? v * sideScale(s, 'pos') * g : 0;

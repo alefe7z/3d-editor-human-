@@ -10,7 +10,10 @@ effects and animation-driven hair motion depend on the host.
 In **Chest**, the female body has additional controls for areola pigmentation,
 pigment coverage, and nipple relief height, width and tip shape. Increase the
 relief height to reveal changes in width and tip shape. Size and shape presets
-set the same breast sliders that can then be adjusted manually. These settings use the existing
+set the same breast sliders that can then be adjusted manually. The numeric
+breast size control accepts values beyond the ordinary slider range. Values
+above 1 or below -1 extrapolate the mesh deformers and are preserved in saved
+presets. Extreme values can cause overlapping geometry and garment clipping. These settings use the existing
 skin-region mask and follow the age and sex gate used by the chest controls.
 The relief changes shading without displacing the mesh. JSON presets and GLB
 metadata preserve the values. The local skin effects require the web shader.

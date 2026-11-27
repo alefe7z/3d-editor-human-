@@ -2,6 +2,7 @@
 // Pure helpers of the glTF export (docs/EXPORT.md): settings JSON (save / share / restore), export options,
 // tint baking math, glTF name sanitising, credits / licence metadata and the humanoid bone-name table.
 // No three.js and no DOM: runs in the browser and in node (tests/export.test.mjs).
+import { extendedBreastSize } from '../character.js';
 import { normalizeAppearance } from '../appearance.js';
 import { MPFB_GAME_ENGINE, MPFB_ROOT_BONE } from '../animation/rig.js';
 import { JOINT_NAMES } from '../animation/canonical.js';
@@ -23,7 +24,14 @@ const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
  */
 export function makeSettings(state, sliderIds) {
   const values = {};
-  for (const id of sliderIds) if (id !== 'gender' && Number.isFinite(Number(state.values?.[id]))) values[id] = round4(Number(state.values[id]));
+  for (const id of sliderIds) {
+    if (id === 'gender') continue;
+    const raw = state.values?.[id];
+    if (id === 'breastSize') {
+      const size = extendedBreastSize(raw);
+      if (size !== null) values[id] = size;
+    } else if (Number.isFinite(Number(raw))) values[id] = round4(Number(raw));
+  }
   const outfit = [...(state.outfit || [])];
   const clothColors = {};
   for (const id of outfit) {
@@ -40,7 +48,7 @@ const round4 = v => { const x = Math.round(v * 1e4) / 1e4; return x === 0 ? 0 : 
 
 /**
  * Validates / cleans a settings object (from a file, a URL or a GLB's extras.characterCreator). Unknown keys are
- * dropped, sliders clamped to -1..1, colours must be #rrggbb, ids [A-Za-z0-9_-]. Throws on a wrong format/version.
+ * dropped, standard sliders clamped to -1..1, colours must be #rrggbb, ids [A-Za-z0-9_-]. Throws on a wrong format/version.
  */
 export function normalizeSettings(s, sliderIds) {
   if (!s || typeof s !== 'object' || Array.isArray(s)) throw new Error('settings: not an object');
@@ -51,8 +59,13 @@ export function normalizeSettings(s, sliderIds) {
   const values = {};
   for (const [k, v] of Object.entries(s.values || {})) {
     if (k === 'gender' || (known.size && !known.has(k))) continue;
-    const n = Number(v);
-    if (Number.isFinite(n)) values[k] = clamp(n, -1, 1);
+    if (k === 'breastSize') {
+      const size = extendedBreastSize(v);
+      if (size !== null) values[k] = size;
+    } else {
+      const n = Number(v);
+      if (Number.isFinite(n)) values[k] = clamp(n, -1, 1);
+    }
   }
   const colors = {};
   for (const k of COLOR_KEYS) if (HEX.test(String(s.colors?.[k] ?? ''))) colors[k] = s.colors[k].toLowerCase();

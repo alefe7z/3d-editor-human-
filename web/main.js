@@ -5,7 +5,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import {
   SLIDERS, BREAST_SIZE_PRESETS, BREAST_SHAPE_PRESETS, applySliders, applySkeleton, validateMorphs, applyTints, characterMeshes, bindToSkeleton, materialRole,
-  sliderInfluences, SEXES, sexOf, genderOfSex, defaultValues, breastGate,
+  sliderInfluences, SEXES, sexOf, genderOfSex, defaultValues, breastGate, extendedBreastSize,
 } from './character.js';
 import { createBreastPhysics, breastMotionScale, combineSupport, zeroWeights, DYN_MORPHS } from './breastphysics.js';
 import { createHumanoid } from './humanoid.js';
@@ -31,7 +31,7 @@ const I18N = {
     sizePreset: 'Størrelsesvalg', shapePreset: 'Formvalg', choosePreset: 'Vælg en forudindstilling',
     small: 'Lille', medium: 'Mellem', large: 'Stor', full: 'Fyldig', rounded: 'Rund', sloped: 'Dråbeformet', projected: 'Fremspringende', wideSet: 'Bred afstand',
     inspectChest: 'Skjul tøj over brystet', chestFront: 'Forfra', chestSide: 'Fra siden', resetChest: 'Nulstil brystindstillinger',
-    secBreast: 'Bryster', breastSize: 'Størrelse', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
+    secBreast: 'Bryster', breastSize: 'Størrelse', breastSizeExact: 'Indtast størrelse (også uden for skyderens område)', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
     breastSpacing: 'Afstand', breastProjection: 'Form (rund ↔ spids)', breastPhysics: 'Brystfysik',
     age: 'Alder (barn ↔ gammel)', height: 'Højde', weight: 'Vægt',
     muscle: 'Muskler', proportions: 'Proportioner', skin: 'Hudfarve', reset: 'Nulstil',
@@ -62,7 +62,7 @@ const I18N = {
     sizePreset: 'Size preset', shapePreset: 'Shape preset', choosePreset: 'Choose a preset',
     small: 'Small', medium: 'Medium', large: 'Large', full: 'Full volume', rounded: 'Rounded', sloped: 'Sloped', projected: 'Projected', wideSet: 'Wide-set',
     inspectChest: 'Hide chest garments for inspection', chestFront: 'Front view', chestSide: 'Side view', resetChest: 'Reset chest settings',
-    secBreast: 'Chest', breastSize: 'Size', breastFirmness: 'Firmness (lift)', breastHeight: 'Position (low ↔ high)',
+    secBreast: 'Chest', breastSize: 'Size', breastSizeExact: 'Enter size (values outside the slider range allowed)', breastFirmness: 'Firmness (lift)', breastHeight: 'Position (low ↔ high)',
     breastSpacing: 'Spacing', breastProjection: 'Shape (round ↔ pointed)', breastPhysics: 'Breast physics',
     age: 'Age (child ↔ old)', height: 'Height', weight: 'Weight',
     muscle: 'Muscle', proportions: 'Proportions', skin: 'Skin colour', reset: 'Reset',
@@ -442,9 +442,26 @@ function slider(parent, s) {
   v.textContent = (+r.value).toFixed(2);
   r.setAttribute('aria-label', l.firstChild.textContent);
   r.dataset.slider = s.id;
-  r.oninput = () => { values[s.id] = +r.value; v.textContent = (+r.value).toFixed(2); update(); };
-  inputs[s.id] = { input: r, show: x => { r.value = x; v.textContent = (+x).toFixed(2); } };
+  const show = x => { r.value = x; v.textContent = (+x).toFixed(2); };
+  r.oninput = () => { values[s.id] = +r.value; inputs[s.id].show(+r.value); update(); };
+  inputs[s.id] = { input: r, show };
   parent.append(l, r);
+  if (s.extended) {
+    const exactLabel = Object.assign(document.createElement('label'), { textContent: t('breastSizeExact') });
+    const exact = Object.assign(document.createElement('input'), {
+      type: 'number', step: 'any', value: values[s.id],
+    });
+    exact.setAttribute('aria-label', t('breastSizeExact'));
+    exact.dataset.sliderExact = s.id;
+    inputs[s.id].show = x => { show(x); exact.value = x; };
+    exact.onchange = () => {
+      const amount = extendedBreastSize(exact.value);
+      if (amount === null) inputs[s.id].show(values[s.id]);
+      else window.__set(s.id, amount);
+    };
+    exactLabel.append(exact);
+    parent.append(exactLabel);
+  }
 }
 // Sex: a two-way switch (radio buttons styled as a segmented control), not a slider. values.gender = +1 / -1.
 function sexSwitch(parent) {
@@ -617,7 +634,7 @@ ui.append(resetBtn);
 // __set('blink' | 'hairCollide' | 'cloth' | 'breastPhysics', bool) / __set('wind', 0..1) / __set('look', 'off' | 'camera' | 'mouse').
 // __set('hair', ...) returns a promise. Sex: __set('sex', 'male' | 'female' | 1 | 0) (0 = female, as MakeHuman's
 // gender macro; -1 is accepted too); __set('gender', +1 | -1) still works. Breast sliders (female only):
-// __set('breastSize' | 'breastFirmness' | 'breastHeight' | 'breastSpacing' | 'breastProjection', -1..1).
+// __set('breastSize', number) extrapolates beyond -1..1. Other breast sliders stay within -1..1.
 // Clothing: __set('outfit', 'tshirt,jeans' | ['tshirt'] | null) / __set('wear', id) / __set('takeOff', slot) /
 // __set('clothColor', { id, primary?, secondary? }) / __set('underwear', bool) (all return a promise); state:
 // window.__clothingState(). __set('sex' | 'gender', ...) also swaps worn underwear of the other sex (returns that promise).
@@ -637,6 +654,11 @@ window.__set = (k, v) => {
   }
   if (k === 'underwear') return clothing.setUnderwear(v !== false && v !== 0 && v !== '0');
   if (Object.hasOwn(APPEARANCE, k)) v = normalizeAppearance({ [k]: v })[k];
+  if (k === 'breastSize') {
+    const size = extendedBreastSize(v);
+    if (size === null) return undefined;
+    v = size;
+  }
   values[k] = v; inputs[k]?.show(v); update();
   if (k === 'gender') return clothing.setSex(sexOf(values));
   return undefined;
