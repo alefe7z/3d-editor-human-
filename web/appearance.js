@@ -17,6 +17,7 @@ export const APPEARANCE = Object.freeze({
   skinWrinkles: 0.25,
   hairShine: 0.55,
   hairMotion: 0.45,
+  gluteMotion: 0.35,
 });
 
 export function normalizeAppearance(source) {

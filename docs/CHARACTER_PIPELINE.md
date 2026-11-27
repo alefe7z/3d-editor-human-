@@ -23,6 +23,14 @@ spring used during animation. **Motion intensity** adjusts both the preview
 and animation-driven motion. The loop itself is a viewer preview, not a GLB
 animation clip.
 
+In **Glutes and hips**, adjust volume, projection, width, roundness, lift and
+soft contour separately. These controls deform the rear of the pelvis and
+the garments around it in the same rest space. The editor saves the slider
+values in presets and exports the static shape in a GLB. Motion intensity
+controls a damped response to animated pelvis motion. The walking preview
+uses the existing walk clip. The secondary motion runs in the editor. A GLB
+can retain its morph target for a runtime driver.
+
 ## Use the creator from a web host
 
 Use `python tools/serve_offline.py` to serve the editor and bundled assets

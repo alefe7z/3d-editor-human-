@@ -16,6 +16,9 @@
 // bdet_*), gated by breastGate(values) = female weight x adult: 0 for a male or a child, so they never show there.
 // `default` = the value the viewer starts with and Reset returns to (defaultValues()); missing values in
 // sliderInfluences() still mean 0.
+export const GLUTE_SLIDERS = ['Volume', 'Projection', 'Width', 'Roundness', 'Lift', 'Softness']
+  .map(name => ({ id: `glute${name}`, group: 'glute', label: name, signedTarget: true }));
+
 export const SLIDERS = [
   { id: 'gender',      group: 'body', label: 'Køn',                   neg: 'gender_female',        pos: 'gender_male', binary: true, default: 1 },
   { id: 'age',         group: 'body', label: 'Alder (barn ↔ gammel)', neg: 'age_child',            pos: 'age_old' },
@@ -36,6 +39,7 @@ export const SLIDERS = [
   { id: 'breastFirmness',   group: 'breast', label: 'Fasthed',   neg: 'breast_firm_min', pos: 'breast_firm_max', default: 0.45 },
   { id: 'breastHeight',     group: 'breast', label: 'Højde',     neg: 'bdet_breast_height_decr', pos: 'bdet_breast_height_incr', default: 0 },
   { id: 'breastSpacing',    group: 'breast', label: 'Afstand',   neg: 'bdet_breast_dist_decr',   pos: 'bdet_breast_dist_incr',   default: 0 },
+  ...GLUTE_SLIDERS,
   { id: 'breastProjection', group: 'breast', label: 'Form',      neg: 'bdet_breast_point_decr',  pos: 'bdet_breast_point_incr',  default: 0 },
 ];
 export const FACE_SLIDERS = SLIDERS.filter(s => s.group === 'face');
@@ -123,6 +127,7 @@ export function sliderInfluences(values) {
   for (const s of SLIDERS) {
     const raw = values?.[s.id];
     const v = s.extended ? (extendedBreastSize(raw) ?? 0) : clamp(Number(raw) || 0, -1, 1);
+    if (s.signedTarget) { out[s.id] = v; continue; }
     const g = s.group === 'breast' ? gate : 1;
     out[s.neg] = v < 0 ? -v * sideScale(s, 'neg') * g : 0;
     out[s.pos] = v > 0 ? v * sideScale(s, 'pos') * g : 0;
@@ -135,14 +140,14 @@ export function sliderInfluences(values) {
 export function validateMorphs(mesh) {
   const dict = mesh?.morphTargetDictionary || {};
   const missing = [];
-  for (const s of SLIDERS) for (const n of [s.neg, s.pos]) if (!(n in dict)) missing.push(n);
+  for (const s of SLIDERS) if (!s.signedTarget) for (const n of [s.neg, s.pos]) if (!(n in dict)) missing.push(n);
   if (missing.length) console.warn('[character] missing morph targets:', missing.join(', '));
   return missing;
 }
 
 const warnedMorphs = new Set();
 // correctives and the breast morphs are optional (a GLB built before them still works, the breast UI just does nothing)
-const optionalMorph = n => /^(corr_|breast_|bdet_|dyn_)/.test(n);
+const optionalMorph = n => /^(corr_|breast_|bdet_|dyn_|glute)/.test(n);
 /** Sets only the influences of morphs owned by SLIDERS (and the correctives); other morph targets
  *  (blink, look) are left untouched. */
 export function applySliders(mesh, values) {
