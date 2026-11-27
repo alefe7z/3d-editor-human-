@@ -133,6 +133,7 @@ under GPL keep those rights. Generated files under `output/` are CC0-1.0 as list
   are **CC0**, so the exported `output/*.glb` / `*.json` are free to use, including commercially, with no
   attribution required.
 - **three.js** is MIT (a third-party library; its notice is kept).
+- **threejs-hair-shader** (hair card shading, `web/third_party/`) is MIT, Copyright (c) 2026 Sander Mørch-Jensen; vendored unmodified with its licence.
 - **Clothing**: T-shirt, jeans, skirt, shoes are CC0 MakeHuman system assets (checked by the build); the trench
   coat is the CC0 `male_casualsuit05` jacket plus a project-generated long skirt, belt, standing collar and
   lapels (see LICENSE-NOTES.md).

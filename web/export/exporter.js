@@ -304,6 +304,8 @@ export function createExporter(deps) {
   }
 
   // ---- materials ----
+  // the first material, or the textured material a render pass stands in for (web/hairpasses.js ccExportSource)
+  const exportMaterialOf = m => { const x = [].concat(m.material)[0]; return x?.ccExportSource ?? x; };
   const imageCanvas = (img, w, h) => {
     const c = document.createElement('canvas');
     c.width = w; c.height = h;
@@ -448,7 +450,7 @@ export function createExporter(deps) {
       const { geo, names, weights } = toGeometry(prepared);
       const mats = [];
       for (const p of prepared) {
-        const src = [].concat(p.part.m.material)[0];
+        const src = exportMaterialOf(p.part.m);
         if (!matCache.has(src)) { await step(0.35, 'stMaterials'); matCache.set(src, await convertMaterial(src, o)); }
         mats.push(matCache.get(src));
       }
@@ -468,7 +470,7 @@ export function createExporter(deps) {
       const ex = {};
       const parts = prepared.map(p => {
         const it = p.part.kind === 'clothing' ? deps.clothing?.catalog?.items.find(i => i.id === p.part.m.userData.ccClothing) : null;
-        return { name: p.part.m.name, kind: p.part.kind, material: [].concat(p.part.m.material)[0]?.name,
+        return { name: p.part.m.name, kind: p.part.kind, material: exportMaterialOf(p.part.m)?.name,
           ...(it ? { clothing: it.id, slot: it.slot, layer: it.layer ?? 0 } : {}), ...(p.cloth ? { ccCloth: p.cloth } : {}) };
       });
       if (prepared.length === 1) {
