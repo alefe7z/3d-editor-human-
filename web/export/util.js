@@ -2,6 +2,7 @@
 // Pure helpers of the glTF export (docs/EXPORT.md): settings JSON (save / share / restore), export options,
 // tint baking math, glTF name sanitising, credits / licence metadata and the humanoid bone-name table.
 // No three.js and no DOM: runs in the browser and in node (tests/export.test.mjs).
+import { normalizeAppearance } from '../appearance.js';
 import { MPFB_GAME_ENGINE, MPFB_ROOT_BONE } from '../animation/rig.js';
 import { JOINT_NAMES } from '../animation/canonical.js';
 
@@ -32,7 +33,7 @@ export function makeSettings(state, sliderIds) {
   return normalizeSettings({
     format: SETTINGS_FORMAT, version: SETTINGS_VERSION, sex: state.sex,
     values, colors: Object.fromEntries(COLOR_KEYS.filter(k => state.colors?.[k]).map(k => [k, state.colors[k]])),
-    hair: state.hair ?? null, outfit, clothColors,
+    hair: state.hair ?? null, outfit, clothColors, appearance: state.appearance,
   }, sliderIds);
 }
 const round4 = v => { const x = Math.round(v * 1e4) / 1e4; return x === 0 ? 0 : x; };
@@ -66,7 +67,8 @@ export function normalizeSettings(s, sliderIds) {
     if (HEX.test(String(c.secondary ?? ''))) o.secondary = c.secondary.toLowerCase();
     if (Object.keys(o).length) clothColors[id] = o;
   }
-  return { format: SETTINGS_FORMAT, version: SETTINGS_VERSION, sex, values, colors, hair, outfit: [...new Set(outfit)], clothColors };
+  return { format: SETTINGS_FORMAT, version: SETTINGS_VERSION, sex, values, colors, hair, outfit: [...new Set(outfit)], clothColors,
+    ...(s.appearance === undefined ? {} : { appearance: normalizeAppearance(s.appearance) }) };
 }
 
 /** UTF-8 safe base64url (no padding). */

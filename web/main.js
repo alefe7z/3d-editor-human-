@@ -13,7 +13,8 @@ import { createAnimator, SPEED_MIN, SPEED_MAX } from './animation/animator.js';
 import { CLIPS } from './animation/clips.js';
 import { createIdleVariation } from './animation/idlevary.js';
 import { createEyeLife, applyMorphWeights } from './eyelife.js';
-import { upgradeSkin, upgradeHair, upgradeCornea, setSkinParams, hairUniforms, createHairCollider } from './materials.js';
+import { APPEARANCE, normalizeAppearance } from './appearance.js';
+import { upgradeSkin, upgradeHair, upgradeCornea, setSkinParams, setAppearance, updateHairMotion, hairUniforms, createHairCollider } from './materials.js';
 import { createClothing } from './clothing.js';
 import { createClothRuntime } from './cloth/runtime.js';
 import { createExporter } from './export/exporter.js';
@@ -24,6 +25,7 @@ const params = new URLSearchParams(location.search);
 // ---- i18n (da default, en via ?lang=en) ----
 const I18N = {
   da: {
+    secSurface: 'Hud- og hårdetaljer', skinPores: 'Porer', skinRoughness: 'Hudens ruhed', skinScattering: 'Lysspredning', skinFuzz: 'Dun', skinWrinkles: 'Rynker', hairShine: 'Hårets glans', hairMotion: 'Hårbevægelse',
     sex: 'Køn', sexMale: 'Mand', sexFemale: 'Kvinde',
     secBreast: 'Bryster', breastSize: 'Størrelse', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
     breastSpacing: 'Afstand', breastProjection: 'Form (rund ↔ spids)', breastPhysics: 'Brystfysik',
@@ -49,6 +51,7 @@ const I18N = {
     cloth: 'Stoffysik', wind: 'Vind',
   },
   en: {
+    secSurface: 'Skin and hair detail', skinPores: 'Pores', skinRoughness: 'Skin roughness', skinScattering: 'Skin scattering', skinFuzz: 'Skin fuzz', skinWrinkles: 'Wrinkle detail', hairShine: 'Hair shine', hairMotion: 'Hair motion',
     sex: 'Sex', sexMale: 'Male', sexFemale: 'Female',
     secBreast: 'Chest', breastSize: 'Size', breastFirmness: 'Firmness (lift)', breastHeight: 'Position (low ↔ high)',
     breastSpacing: 'Spacing', breastProjection: 'Shape (round ↔ pointed)', breastPhysics: 'Breast physics',
@@ -136,7 +139,7 @@ const DEFAULT_TOGGLES = {
 };
 // Body defaults (web/character.js defaultValues): male, every other slider at its default. ?sex=female|male|0|1.
 const DEFAULT_BODY = defaultValues();
-const values = { ...DEFAULT_TINTS, ...DEFAULT_TOGGLES, hair: null, ...DEFAULT_BODY };
+const values = { ...DEFAULT_TINTS, ...DEFAULT_TOGGLES, ...APPEARANCE, hair: null, ...DEFAULT_BODY };
 if (params.has('sex') && genderOfSex(params.get('sex')) !== null) values.gender = genderOfSex(params.get('sex'));
 let body = null, joints = null, animator = null, humanoid = null, parts = [], cloth = null, idleVary = null;
 const eyeLife = createEyeLife({ blink: values.blink });
@@ -155,6 +158,7 @@ function update() {
   animator?.bodyChanged();
   applyTints(body.parent || body, tints());
   setSkinParams({ gender: values.gender });
+  setAppearance(values);
   syncSexUI();
   // hair collision radii are measured in the rest pose with the current morphs (never changes the rest pose)
   // (+ the back of the worn garments: long hair lies on a hood / collar, not inside it)
@@ -291,6 +295,12 @@ loader.load('./base_body.glb', async g => {
   buildClothUI();
   // ?character=<base64url JSON | JSON | .json URL>: restore a saved / shared character (web/export/util.js)
   if (params.has('character')) await exporter.restoreFromUrl(params.get('character'));
+  window.characterCreator = Object.freeze({
+    getSettings: exporter.settings,
+    applySettings: exporter.applySettings,
+    set: window.__set,
+    exportGlb: exporter.exportGlb,
+  });
   window.__ready = true;
 }, xhr => {
   if (xhr.lengthComputable) setStatus(`${t('loading')} ${Math.round(100 * xhr.loaded / xhr.total)}%`);
@@ -406,7 +416,7 @@ function slider(parent, s) {
   l.textContent = t(s.id) === s.id ? s.label : t(s.id);
   const v = Object.assign(document.createElement('span'), { className: 'v', textContent: '0.00' });
   l.append(v);
-  const r = Object.assign(document.createElement('input'), { type: 'range', min: -1, max: 1, step: 0.01, value: values[s.id] ?? 0 });
+  const r = Object.assign(document.createElement('input'), { type: 'range', min: s.min ?? -1, max: 1, step: 0.01, value: values[s.id] ?? 0 });
   v.textContent = (+r.value).toFixed(2);
   r.setAttribute('aria-label', l.firstChild.textContent);
   r.dataset.slider = s.id;
@@ -468,6 +478,8 @@ checkbox(secEyes, 'blink');
   secEyes.append(l, sel);
 }
 const secLooks = section('secLooks');
+const surface = section('secSurface', false);
+for (const id of Object.keys(APPEARANCE)) slider(surface, { id, min: 0 });
 function colorInput(id, label) {
   const cl = document.createElement('label'); cl.textContent = label;
   const c = Object.assign(document.createElement('input'), { type: 'color', value: values[id] });
@@ -496,7 +508,7 @@ const secClothes = section('secClothes');      // filled by clothing.init() once
 const resetBtn = Object.assign(document.createElement('button'), { type: 'button', textContent: t('reset') });
 resetBtn.onclick = () => {
   for (const s of SLIDERS) { values[s.id] = DEFAULT_BODY[s.id]; inputs[s.id]?.show(values[s.id]); }
-  for (const [k, v] of Object.entries({ ...DEFAULT_TINTS, ...DEFAULT_TOGGLES })) { values[k] = v; inputs[k]?.show(v); }
+  for (const [k, v] of Object.entries({ ...DEFAULT_TINTS, ...DEFAULT_TOGGLES, ...APPEARANCE })) { values[k] = v; inputs[k]?.show(v); }
   update();
   breast.reset();
   if (hairManifest) setHair(hairManifest.default);
@@ -529,6 +541,7 @@ window.__set = (k, v) => {
     k = 'gender'; v = g;
   }
   if (k === 'underwear') return clothing.setUnderwear(v !== false && v !== 0 && v !== '0');
+  if (Object.hasOwn(APPEARANCE, k)) v = normalizeAppearance({ [k]: v })[k];
   values[k] = v; inputs[k]?.show(v); update();
   if (k === 'gender') return clothing.setSex(sexOf(values));
   return undefined;
@@ -783,6 +796,7 @@ function tick(dt) {
     scene.updateMatrixWorld();                  // bones after the animator: gaze frame + hair capsules + cloth
     if (holdWeights) for (const m of parts) applyMorphWeights(m, holdWeights);
     else updateEyes(dt);
+    updateHairMotion(dt, body.skeleton.getBoneByName('head'), values.wind);
     if (values.hairCollide) for (const [m, c] of colliders) if (m.visible) c.update();
     updateBreast(dt);                            // morph weights only: before the cloth skins the garments
     cloth?.update(dt, parts);

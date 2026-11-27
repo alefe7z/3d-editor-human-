@@ -20,6 +20,7 @@
 //
 // Cornea: a small fixed catchlight (view-space light direction) so the eyes read alive in any lighting.
 import * as THREE from 'three';
+import { APPEARANCE } from './appearance.js';
 
 const CC = { PORE_REPEAT: 42, PORE_STRENGTH: 0.35 };
 
@@ -85,6 +86,9 @@ export const skinUniforms = {
   ccAreola: { value: 0 }, ccInvGain: { value: 1 },
   ccPores: { value: null }, ccPoreRepeat: { value: CC.PORE_REPEAT }, ccPoreStrength: { value: CC.PORE_STRENGTH },
   ccSSS: { value: 1 },
+  ccRoughness: { value: APPEARANCE.skinRoughness },
+  ccFuzz: { value: APPEARANCE.skinFuzz },
+  ccWrinkles: { value: 0 },
 };
 
 /** Areola tone-down from the gender slider (-1 female .. 1 male): 0 for female, ~0.35 neutral, 0.7 male. */
@@ -114,6 +118,7 @@ export function upgradeSkin(old, regionsTexture) {
 uniform sampler2D ccRegions; uniform float ccHasRegions; uniform vec3 ccWrap; uniform vec3 ccTransmit;
 uniform float ccAreola; uniform float ccInvGain; uniform float ccSSS;
 uniform sampler2D ccPores; uniform float ccPoreRepeat; uniform float ccPoreStrength;
+uniform float ccRoughness; uniform float ccFuzz; uniform float ccWrinkles;
 float ccThinV = 0.0;`);
     f = insertAfter(f, '#include <map_fragment>', `
 #ifdef USE_MAP
@@ -128,7 +133,17 @@ float ccThinV = 0.0;`);
     float ccFade = 1.0 - smoothstep( 0.35, 1.2, length( vViewPosition ) );
     vec2 ccP = texture2D( ccPores, vNormalMapUv * ccPoreRepeat ).xy * 2.0 - 1.0;
     mapN.xy += ccP * ccPoreStrength * ccFade;
+    vec2 ccUV = vNormalMapUv;
+    float ccFold = sin( ccUV.y * 1700.0 + sin( ccUV.x * 160.0 ) * 1.7 );
+    mapN.y += ccFold * abs( ccP.y ) * ccWrinkles * ccFade * 0.2;
   }`);
+    f = insertAfter(f, '#include <roughnessmap_fragment>', `
+#ifdef USE_NORMALMAP
+  float ccOil = texture2D( ccPores, vNormalMapUv * 6.0 ).r - 0.5;
+  roughnessFactor = clamp( ccRoughness + ccOil * 0.45, 0.25, 0.95 );
+#else
+  roughnessFactor = clamp( ccRoughness, 0.25, 0.95 );
+#endif`);
     f = patchChunk(f, 'lights_physical_pars_fragment', DIRECT_DIFFUSE, `{
     float ccNL = dot( geometryNormal, directLight.direction );
     vec3 ccW = ccWrap * ccSSS;
@@ -136,10 +151,13 @@ float ccThinV = 0.0;`);
     reflectedLight.directDiffuse += ccWrapNL * directLight.color * BRDF_Lambert( material.diffuseColor );
     float ccBack = pow( saturate( dot( geometryViewDir, - directLight.direction ) ), 3.0 ) * ccThinV;
     reflectedLight.directDiffuse += ccBack * ccTransmit * directLight.color * material.diffuseColor;
+    float ccRim = pow( 1.0 - saturate( dot( geometryNormal, geometryViewDir ) ), 4.0 );
+    float ccBackRim = saturate( dot( -geometryViewDir, directLight.direction ) );
+    reflectedLight.directDiffuse += ccFuzz * ccRim * ccBackRim * directLight.color * material.diffuseColor * 0.14;
   }`);
     sh.fragmentShader = f;
   };
-  m.customProgramCacheKey = () => 'ccSkin1';
+  m.customProgramCacheKey = () => 'ccSkin2';
   m.needsUpdate = true;
   return m;
 }
@@ -151,16 +169,60 @@ export const hairUniforms = {
   // jagged, balder edge instead of softening it (compared off / 12 mm / 25 mm on 4 styles). Kept for tuning.
   ccEdgeFade: { value: 0.012 }, ccHairline: { value: 0 },
   ccCollide: { value: 0 },
+  ccHairShine: { value: APPEARANCE.hairShine },
+  ccHairOffset: { value: new THREE.Vector3() },
   ccCollideFrom: { value: 0.05 }, ccCollideTo: { value: 0.13 },   // strand-length ramp of the collision weight
   ccCapA: { value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()] },
   ccCapB: { value: [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()] },
   ccCapR: { value: [0, 0, 0] },
 };
+export function setAppearance(values) {
+  skinUniforms.ccPoreStrength.value = values.skinPores;
+  skinUniforms.ccRoughness.value = values.skinRoughness;
+  skinUniforms.ccSSS.value = values.skinScattering;
+  skinUniforms.ccFuzz.value = values.skinFuzz;
+  skinUniforms.ccWrinkles.value = values.skinWrinkles * (0.5 + 0.5 * (values.age ?? 0));
+  hairUniforms.ccHairShine.value = values.hairShine;
+  hairMotion = values.hairMotion;
+}
+
+let hairMotion = APPEARANCE.hairMotion;
+let lastHead = null;
+let phase = 0;
+const previous = new THREE.Vector3();
+const current = new THREE.Vector3();
+const target = new THREE.Vector3();
+const velocity = new THREE.Vector3();
+
+export function updateHairMotion(dt, head, wind) {
+  const offset = hairUniforms.ccHairOffset.value;
+  if (head !== lastHead || !head || !hairMotion) {
+    lastHead = head;
+    offset.set(0, 0, 0);
+    velocity.set(0, 0, 0);
+    head?.getWorldPosition(previous);
+    return;
+  }
+  if (dt <= 0) return;
+  const step = Math.min(dt, 1 / 30);
+  head.getWorldPosition(current);
+  target.copy(previous).sub(current).multiplyScalar(0.035 / dt).clampLength(0, 0.04);
+  previous.copy(current);
+  phase += step;
+  target.x += Math.sin(phase * 2.8) * wind * 0.018;
+  target.z += Math.sin(phase * 1.9) * wind * 0.01;
+  target.multiplyScalar(hairMotion);
+  velocity.addScaledVector(target.sub(offset), 100 * step).multiplyScalar(Math.exp(-9 * step));
+  offset.addScaledVector(velocity, step);
+}
+
 export const HAIR_COLLIDE_FROM = 0.05;            // m from the scalp: shorter strands never move
 
 export function upgradeHair(old, geometry) {
   const m = toPhysical(old);
   m.specularIntensity = 0.55;
+  m.anisotropy = 0.72;
+  m.anisotropyRotation = Math.PI / 2;
   m.roughness = Math.max(m.roughness, 0.66);
   m.envMapIntensity = 0.45;
   const hasLen = !!geometry?.attributes?._cchair, hasEdge = !!geometry?.attributes?._ccedge;
@@ -170,12 +232,14 @@ export function upgradeHair(old, geometry) {
     v = v.replace('#include <common>', `#include <common>
 ${hasLen ? 'attribute float _cchair;' : ''} ${hasEdge ? 'attribute float _ccedge;' : ''}
 varying float vCcLen; varying float vCcEdge;
-uniform float ccCollide; uniform float ccCollideFrom; uniform float ccCollideTo; uniform vec3 ccCapA[3]; uniform vec3 ccCapB[3]; uniform float ccCapR[3];`);
+uniform vec3 ccHairOffset; uniform float ccCollide; uniform float ccCollideFrom; uniform float ccCollideTo; uniform vec3 ccCapA[3]; uniform vec3 ccCapB[3]; uniform float ccCapR[3];`);
     v = insertAfter(v, '#include <skinning_vertex>', `
   vCcLen = ${hasLen ? '_cchair' : '0.1'};
   vCcEdge = ${hasEdge ? '_ccedge' : '1.0'};
   {
-    float ccW = ccCollide * smoothstep( ccCollideFrom, ccCollideTo, vCcLen );
+    float ccLengthWeight = smoothstep( ccCollideFrom, ccCollideTo, vCcLen );
+    transformed += ccHairOffset * ccLengthWeight;
+    float ccW = ccCollide * ccLengthWeight;
     if ( ccW > 0.0 ) {
       for ( int i = 0; i < 3; i ++ ) {
         vec3 ab = ccCapB[ i ] - ccCapA[ i ];
@@ -190,7 +254,7 @@ uniform float ccCollide; uniform float ccCollideFrom; uniform float ccCollideTo;
     let f = sh.fragmentShader;
     f = f.replace('#include <common>', `#include <common>
 varying float vCcLen; varying float vCcEdge;
-uniform float ccRootTone; uniform float ccTipTone; uniform float ccGradLen; uniform float ccEdgeFade; uniform float ccHairline;`);
+uniform float ccHairShine; uniform float ccRootTone; uniform float ccTipTone; uniform float ccGradLen; uniform float ccEdgeFade; uniform float ccHairline;`);
     f = insertAfter(f, '#include <map_fragment>', `
   diffuseColor.rgb *= mix( ccRootTone, ccTipTone, smoothstep( 0.0, ccGradLen, vCcLen ) );
   #ifdef USE_MAP
@@ -203,9 +267,11 @@ uniform float ccRootTone; uniform float ccTipTone; uniform float ccGradLen; unif
     diffuseColor.a *= mix( 1.0, ccKeep, ccHairline * ( 1.0 - ccFade * ccFade ) );
   }
   #endif`);
+    f = insertAfter(f, '#include <roughnessmap_fragment>',
+      'roughnessFactor = mix( roughnessFactor, mix( 0.85, 0.28, ccHairShine ), 0.8 );');
     sh.fragmentShader = f;
   };
-  m.customProgramCacheKey = () => `ccHair1${hasLen}${hasEdge}`;
+  m.customProgramCacheKey = () => `ccHair2${hasLen}${hasEdge}`;
   m.needsUpdate = true;
   return m;
 }

@@ -6,6 +6,7 @@
 // three.js' GLTFExporter and post-processes the GLB (web/export/glbpack.js: sparse / quantised morph targets,
 // metadata). The viewer's scene is never modified.
 import * as THREE from 'three';
+import { normalizeAppearance } from '../appearance.js';
 import { GLTFExporter } from 'three/addons/exporters/GLTFExporter.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
 import { SLIDERS, sliderInfluences, materialRole, sexOf, breastGate } from '../character.js';
@@ -30,6 +31,7 @@ const I18N = {
     exTex: 'Teksturstørrelse', exTexOrig: 'Original', exClothing: 'Tøj', exHair: 'Hår', exEyes: 'Øjne', exTeeth: 'Tænder',
     exTongue: 'Tunge', exBrows: 'Øjenbryn', exLashes: 'Øjenvipper', exRemoveHidden: 'Fjern skjult hud under tøj',
     exMerge: 'Saml i ét mesh', exButton: 'Eksporter glTF (.glb)',
+    exQuantize: 'Komprimér morphs (kræver KHR_mesh_quantization)',
     exNote: 'Hudens SSS-shader eksporteres ikke (almindelig PBR). Stof og hår simuleres ikke; stofdata følger med som extras.',
     exSaveJson: 'Gem indstillinger (JSON)', exLoadJson: 'Indlæs indstillinger…', exShare: 'Kopiér delingslink',
     exBusy: 'Eksporterer…', exDone: 'Eksporteret', exError: 'Eksport fejlede:', exLoaded: 'Indstillinger indlæst',
@@ -43,6 +45,7 @@ const I18N = {
     exTex: 'Texture size', exTexOrig: 'Original', exClothing: 'Clothes', exHair: 'Hair', exEyes: 'Eyes', exTeeth: 'Teeth',
     exTongue: 'Tongue', exBrows: 'Eyebrows', exLashes: 'Eyelashes', exRemoveHidden: 'Remove skin hidden under clothes',
     exMerge: 'Merge into one mesh', exButton: 'Export glTF (.glb)',
+    exQuantize: 'Compress morphs (requires KHR_mesh_quantization)',
     exNote: 'The skin SSS shader is not exported (plain PBR). Cloth and hair are not simulated; cloth data is included as extras.',
     exSaveJson: 'Save settings (JSON)', exLoadJson: 'Load settings…', exShare: 'Copy share link',
     exBusy: 'Exporting…', exDone: 'Exported', exError: 'Export failed:', exLoaded: 'Settings loaded',
@@ -100,7 +103,7 @@ export function createExporter(deps) {
     return makeSettings({
       sex: sexOf(v), values: deps.bodyValues(),
       colors: { skin: v.skin, eyeColor: v.eyeColor, hairColor: v.hairColor, browColor: v.browColor },
-      hair: v.hair ?? null, outfit: cs.outfit, clothColors: cs.colors,
+      appearance: v, hair: v.hair ?? null, outfit: cs.outfit, clothColors: cs.colors,
     }, SLIDER_IDS);
   }
 
@@ -109,6 +112,7 @@ export function createExporter(deps) {
     await deps.set('sex', s.sex);
     for (const id of SLIDER_IDS) if (id !== 'gender' && s.values[id] !== undefined) deps.set(id, s.values[id]);
     for (const [k, v] of Object.entries(s.colors)) deps.set(k, v);
+    for (const [k, v] of Object.entries(normalizeAppearance(s.appearance))) deps.set(k, v);
     await deps.set('hair', s.hair);
     const cat = deps.clothing?.catalog;
     if (cat) {
@@ -343,8 +347,11 @@ export function createExporter(deps) {
       map = tex;
       await yieldUI();
     }
+    let roughness = src.roughness ?? 1;
+    if (role === 'skin') roughness = THREE.MathUtils.clamp(deps.values.skinRoughness ?? roughness, 0.25, 0.95);
+    if (role === 'hair') roughness = THREE.MathUtils.lerp(0.85, 0.28, deps.values.hairShine ?? 0.55);
     const m = new THREE.MeshStandardMaterial({
-      name: src.name, map, roughness: src.roughness ?? 1, metalness: src.metalness ?? 0,
+      name: src.name, map, roughness, metalness: src.metalness ?? 0,
       normalMap: src.normalMap ?? null, side: src.side, alphaTest: src.alphaTest || 0,
       transparent: !!src.transparent && (src.opacity ?? 1) < 1, opacity: src.opacity ?? 1,
       roughnessMap: src.roughnessMap ?? null, metalnessMap: src.metalnessMap ?? null, aoMap: src.aoMap ?? null,
@@ -570,7 +577,7 @@ export function createExporter(deps) {
     };
     const checks = {};
     for (const [k, key, def] of [['clothing', 'exClothing', true], ['hair', 'exHair', true], ['eyes', 'exEyes', true], ['teeth', 'exTeeth', true],
-      ['tongue', 'exTongue', true], ['brows', 'exBrows', true], ['lashes', 'exLashes', true], ['removeHiddenSkin', 'exRemoveHidden', true], ['merge', 'exMerge', false]]) {
+      ['tongue', 'exTongue', true], ['brows', 'exBrows', true], ['lashes', 'exLashes', true], ['removeHiddenSkin', 'exRemoveHidden', true], ['merge', 'exMerge', false], ['quantize', 'exQuantize', false]]) {
       const l = Object.assign(document.createElement('label'), { className: 'check' });
       const c = Object.assign(document.createElement('input'), { type: 'checkbox', checked: def });
       c.dataset.export = k;

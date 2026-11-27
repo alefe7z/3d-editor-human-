@@ -7,6 +7,8 @@ sliders, skeleton and skin colour at runtime.
 
 Live viewer: https://dionysus.dk/webxr/charactercreator/
 
+Editor integration, Blender grooming and Godot instantiation: [Character creation pipeline](docs/CHARACTER_PIPELINE.md).
+
 ## Status vs. scope v1
 
 | Scope v1 item | Status |
