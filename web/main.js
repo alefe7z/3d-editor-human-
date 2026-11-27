@@ -4,7 +4,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import {
-  SLIDERS, GLUTE_SLIDERS, EXTERNAL_SLIDERS, BREAST_SIZE_PRESETS, BREAST_SHAPE_PRESETS, applySliders, applySkeleton, validateMorphs, applyTints, characterMeshes, bindToSkeleton, materialRole,
+  SLIDERS, GLUTE_SLIDERS, EXTERNAL_SLIDERS, EXTERNAL_PRESETS, BREAST_SIZE_PRESETS, BREAST_SHAPE_PRESETS, applySliders, applySkeleton, validateMorphs, applyTints, characterMeshes, bindToSkeleton, materialRole,
   sliderInfluences, SEXES, sexOf, genderOfSex, defaultValues, breastGate, extendedBreastSize,
 } from './character.js';
 import { createBreastPhysics, breastMotionScale, combineSupport, zeroWeights, DYN_MORPHS } from './breastphysics.js';
@@ -32,6 +32,10 @@ const I18N = {
     sizePreset: 'Størrelsesvalg', shapePreset: 'Formvalg', choosePreset: 'Vælg en forudindstilling',
     small: 'Lille', medium: 'Mellem', large: 'Stor', full: 'Fyldig', rounded: 'Rund', sloped: 'Dråbeformet', projected: 'Fremspringende', wideSet: 'Bred afstand',
     inspectChest: 'Skjul tøj over brystet', chestFront: 'Forfra', chestSide: 'Fra siden', resetChest: 'Nulstil brystindstillinger',
+    externalPreset: 'Anatomiprofil', compact: 'Kompakt', fullerOuter: 'Fyldigere ydre folder', definedInner: 'Tydeligere indre folder',
+    externalOuterSeparation: 'Afstand mellem ydre kønslæber', externalInnerSeparation: 'Afstand mellem indre kønslæber', externalInnerLength: 'Længde af indre kønslæber',
+    externalAsymmetry: 'Asymmetri', externalGlansSize: 'Klitorisglansens størrelse', externalGlansProjection: 'Klitorisglansens fremspring',
+    externalUrethralRelief: 'Urinrørsåbningens relief', externalIntroitusRelief: 'Skedeåbningens relief',
     secExternal: 'Ydre anatomi', externalFullness: 'Fylde over skambenet', externalWidth: 'Konturbredde', externalOuterContour: 'Ydre kønslæber', externalFoldRelief: 'Indre kønslæber', externalHood: 'Klitorishætte', externalVestibule: 'Vestibulens dybde', externalMotion: 'Bevægelsesstyrke',
     secGlutes: 'Balder og hofter', gluteVolume: 'Volumen', gluteProjection: 'Fremspring', gluteWidth: 'Bredde', gluteRoundness: 'Rundhed', gluteLift: 'Løft', gluteSoftness: 'Blød kontur', gluteMotion: 'Bevægelse bagpå', frontHipMotion: 'Bevægelse foran', hipFront: 'Forfra', glutePreview: 'Vis bevægelse i gang', gluteBack: 'Bagfra', gluteSide: 'Fra siden',
     secBreast: 'Bryster', breastSize: 'Størrelse', breastSizeExact: 'Indtast størrelse (også uden for skyderens område)', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
@@ -65,6 +69,10 @@ const I18N = {
     sizePreset: 'Size preset', shapePreset: 'Shape preset', choosePreset: 'Choose a preset',
     small: 'Small', medium: 'Medium', large: 'Large', full: 'Full volume', rounded: 'Rounded', sloped: 'Sloped', projected: 'Projected', wideSet: 'Wide-set',
     inspectChest: 'Hide chest garments for inspection', chestFront: 'Front view', chestSide: 'Side view', resetChest: 'Reset chest settings',
+    externalPreset: 'Anatomy preset', compact: 'Compact', fullerOuter: 'Fuller outer folds', definedInner: 'Defined inner folds',
+    externalOuterSeparation: 'Outer labia separation', externalInnerSeparation: 'Inner labia separation', externalInnerLength: 'Inner labia length',
+    externalAsymmetry: 'Asymmetry', externalGlansSize: 'Clitoral glans size', externalGlansProjection: 'Clitoral glans projection',
+    externalUrethralRelief: 'Urethral opening relief', externalIntroitusRelief: 'Vaginal opening relief',
     secExternal: 'External anatomy', externalFullness: 'Pubic fullness', externalWidth: 'Contour width', externalOuterContour: 'Outer labia contour', externalFoldRelief: 'Inner labia relief', externalHood: 'Clitoral hood', externalVestibule: 'Vestibule depth', externalMotion: 'Motion intensity',
     secGlutes: 'Glutes and hips', gluteVolume: 'Volume', gluteProjection: 'Projection', gluteWidth: 'Width', gluteRoundness: 'Roundness', gluteLift: 'Lift', gluteSoftness: 'Soft contour', gluteMotion: 'Rear motion intensity', frontHipMotion: 'Front hip motion intensity', hipFront: 'Front view', glutePreview: 'Preview motion while walking', gluteBack: 'Back view', gluteSide: 'Side view',
     secBreast: 'Chest', breastSize: 'Size', breastSizeExact: 'Enter size (values outside the slider range allowed)', breastFirmness: 'Firmness (lift)', breastHeight: 'Position (low ↔ high)',
@@ -520,7 +528,7 @@ for (const [id, view] of [['chestFront', 'chest'], ['chestSide', 'chestSide']]) 
   chestViews.append(button);
 }
 secBreast.append(chestViews);
-function chestPreset(id, presets, apply) {
+function presetControl(parent, id, presets, apply) {
   const label = Object.assign(document.createElement('label'), { textContent: t(id) });
   const select = document.createElement('select');
   select.setAttribute('aria-label', t(id));
@@ -535,10 +543,10 @@ function chestPreset(id, presets, apply) {
     select.value = '';
     update();
   };
-  secBreast.append(label, select);
+  parent.append(label, select);
 }
-chestPreset('sizePreset', BREAST_SIZE_PRESETS, breastSize => ({ breastSize }));
-chestPreset('shapePreset', BREAST_SHAPE_PRESETS, shape => shape);
+presetControl(secBreast, 'sizePreset', BREAST_SIZE_PRESETS, breastSize => ({ breastSize }));
+presetControl(secBreast, 'shapePreset', BREAST_SHAPE_PRESETS, shape => shape);
 for (const s of chestSliders) slider(secBreast, s);
 checkbox(secBreast, 'breastPhysics');
 const previewMotionLabel = Object.assign(document.createElement('label'), { className: 'check' });
@@ -611,6 +619,10 @@ glutePreviewButton.onclick = previewPelvisMotion;
 secGlutes.append(glutePreviewButton);
 const secExternal = section('secExternal', false);
 secExternal.hidden = true;
+presetControl(secExternal, 'externalPreset', EXTERNAL_PRESETS, preset => ({
+  ...Object.fromEntries(EXTERNAL_SLIDERS.map(setting => [setting.id, DEFAULT_BODY[setting.id]])),
+  ...preset,
+}));
 for (const setting of EXTERNAL_SLIDERS) slider(secExternal, setting);
 slider(secExternal, { id: 'externalMotion', min: 0 });
 const externalPreviewButton = Object.assign(document.createElement('button'), { type: 'button', textContent: t('glutePreview') });

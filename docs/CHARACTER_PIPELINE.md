@@ -34,7 +34,10 @@ and affects the lower abdomen and the front of fitted garments. Use
 can retain its morph target for a runtime driver.
 
 **External anatomy** on the adult female body provides controls for pubic fullness, contour width, outer and inner labia,
-the clitoral hood and depth of the vestibule surface. Local mesh refinement
+separation and length of the folds, their asymmetry, clitoral hood and
+glans, depth of the vestibule surface and shallow relief at the urethral and
+vaginal openings. Presets provide editable starting points. The openings are
+represented as shallow features in a continuous surface. Local mesh refinement
 preserves the UVs, skin weights and existing morph targets. The surface form
 is based on adult external anatomical landmarks described by
 [Cleveland Clinic](https://my.clevelandclinic.org/health/body/vulva). The motion slider drives a small damped

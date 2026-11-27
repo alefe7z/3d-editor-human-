@@ -50,12 +50,25 @@ function externalDeltas(x, y, z) {
   const inner = band(side, innerCenter, 0.0045) * band(y, 0.786, 0.017) * contour;
   const hood = band(side, 0.003, 0.006) * band(y, 0.804, 0.007) * anterior;
   const vestibule = band(side, 0, 0.006) * band(y, 0.781, 0.011) * contour;
+  const glans = band(side, 0, 0.004) * band(y, 0.8, 0.0045) * anterior;
+  const glansShoulder = band(side, 0, 0.0065) * band(y, 0.8, 0.007) * anterior;
+  const urethral = band(side, 0, 0.0022) * band(y, 0.791, 0.0028) * anterior;
+  const introitus = band(side, 0, 0.006) * band(y, 0.776, 0.006) * anterior;
+  const lateral = Math.sign(x) * smooth(0, 0.006, side);
   return {
     externalFullness: [0, 0, 0.011 * pubic],
     externalWidth: [x * 0.38 * contour, 0, 0],
     externalOuterContour: [0, 0, 0.008 * outer],
     externalFoldRelief: [0, 0, 0.006 * inner],
+    externalOuterSeparation: [lateral * 0.0045 * outer, 0, 0],
+    externalInnerSeparation: [lateral * 0.0035 * inner, 0, 0],
+    externalInnerLength: [0, (y - 0.786) * inner * 0.65, 0],
+    externalAsymmetry: [0, 0, lateral * (0.003 * outer + 0.002 * inner)],
     externalHood: [0, 0, 0.0035 * hood],
+    externalGlansSize: [x * 0.6 * glansShoulder, (y - 0.8) * 0.55 * glansShoulder, 0.0015 * glansShoulder],
+    externalGlansProjection: [0, 0, 0.003 * glans],
+    externalUrethralRelief: [0, 0, -0.0012 * urethral],
+    externalIntroitusRelief: [0, 0, -0.0035 * introitus],
     externalVestibule: [0, 0, -0.004 * vestibule],
     [EXTERNAL_MOTION]: [0, 0.0025 * contour, 0.001 * contour],
   };

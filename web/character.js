@@ -20,8 +20,20 @@ export const GLUTE_SLIDERS = ['Volume', 'Projection', 'Width', 'Roundness', 'Lif
   .map(name => ({ id: `glute${name}`, group: 'glute', label: name, signedTarget: true }));
 
 export const EXTERNAL_SLIDERS = Object.entries({
-  Fullness: 0, Width: 0, OuterContour: 0.55, FoldRelief: 0.45, Hood: 0.4, Vestibule: 0.4,
+  Fullness: 0, Width: 0, OuterContour: 0.55, FoldRelief: 0.45,
+  OuterSeparation: 0, InnerSeparation: 0, InnerLength: 0, Asymmetry: 0,
+  Hood: 0.4, GlansSize: 0.35, GlansProjection: 0.25, Vestibule: 0.4,
+  UrethralRelief: 0.3, IntroitusRelief: 0.35,
 }).map(([name, value]) => ({ id: `external${name}`, group: 'external', label: name, signedTarget: true, default: value }));
+
+export const EXTERNAL_PRESETS = Object.freeze({
+  compact: { externalOuterContour: 0.35, externalFoldRelief: 0.25, externalOuterSeparation: -0.4,
+    externalInnerSeparation: -0.35, externalInnerLength: -0.4, externalGlansSize: 0.2 },
+  fullerOuter: { externalOuterContour: 0.85, externalFoldRelief: 0.35, externalOuterSeparation: 0.15,
+    externalInnerSeparation: -0.15, externalInnerLength: -0.15, externalGlansSize: 0.35 },
+  definedInner: { externalOuterContour: 0.45, externalFoldRelief: 0.8, externalOuterSeparation: 0.25,
+    externalInnerSeparation: 0.45, externalInnerLength: 0.5, externalGlansSize: 0.45 },
+});
 
 export const SLIDERS = [
   { id: 'gender',      group: 'body', label: 'Køn',                   neg: 'gender_female',        pos: 'gender_male', binary: true, default: 1 },
