@@ -13,6 +13,8 @@
 - [x] Checked, not reproduced: face parts out of place, breast physics not working (main viewer). Parts follow the
       skin within ~7 mm on 25 sliders x 4 clips, GPU render vs CPU ~1 mm; breast physics 5-7 mm at a run (female only).
       Likely cause on the owner's machine: stale `build/site` / browser cache.
+- [x] Desktop app (`desktop/`, Electron): editor offline in its own window; packaged Linux build checked (no errors,
+      no network, export works); Windows portable exe builds, installer needs Windows. `docs/DESKTOP.md`.
 - [ ] Open: see AGENTS.md "Open work".
 
 ## Working

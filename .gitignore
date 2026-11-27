@@ -25,3 +25,7 @@ deploy.ps1
 deploy.htaccess
 AGENTS.local.md
 web/data/
+
+# desktop app (Electron): dependencies and built installers
+desktop/node_modules/
+desktop/dist/

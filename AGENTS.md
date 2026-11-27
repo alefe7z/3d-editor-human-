@@ -102,6 +102,12 @@ tool-specific file. Status and numbers go in `docs/STATUS.md`.
   target stack), `web/mh/details.js` (MIT: face / chest detail sliders).
   Data: `python tools/export_data.py [MPFB_DATA_DIR] [OUT]` -> `web/data/`
   (git-ignored). Doc: `docs/RUNTIME_PROTOTYPE.md`.
+- Desktop app (2026-11-27): `desktop/` (Electron, MIT) serves `web/` + `output/`
+  through `app://charactercreator/` and swaps the three.js CDN for its own copy
+  (offline). `cd desktop && npm install && npm start`; installer: `npm run dist`
+  (on Windows). Keep `web/` working in a plain browser too. If three.js is
+  upgraded, change `THREE_CDN` in `desktop/resolve.cjs` and `desktop/package.json`
+  together (`tests/desktop.test.mjs` checks it). Doc: `docs/DESKTOP.md`.
 
 ### Verify before you commit
 - `npm test` (about 4-5 min, run it in the background). Expected today:
@@ -138,6 +144,8 @@ tool-specific file. Status and numbers go in `docs/STATUS.md`.
 - MakeHuman hair alpha is ~binary (density > 1.2 saturates); `braid01` is an
   opaque painted mesh, not cards; afro01 / ponytail01 / short02 have no single
   strand direction.
+- electron-builder drops `node_modules/*/examples`: three.js ships as an extra
+  resource (`resources/app/three`), not as a node module.
 - If the face looks out of place in a browser but the numbers are fine, suspect
   a stale `build/site` or browser cache (old GLB + new joints sidecar).
 

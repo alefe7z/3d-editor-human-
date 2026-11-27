@@ -1,0 +1,79 @@
+{
+  "name": "charactercreator-desktop",
+  "productName": "CharacterCreator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "CharacterCreator editor as a desktop app (Electron, offline)",
+  "license": "MIT",
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "dist:dir": "electron-builder --dir",
+    "dist:linux": "electron-builder --linux AppImage"
+  },
+  "dependencies": {
+    "three": "0.170.0"
+  },
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "25.1.8"
+  },
+  "build": {
+    "appId": "dev.charactercreator.desktop",
+    "productName": "CharacterCreator",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.cjs",
+      "resolve.cjs",
+      "package.json",
+      "!node_modules/three/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../web",
+        "to": "app/web",
+        "filter": [
+          "**/*",
+          "!data/**"
+        ]
+      },
+      {
+        "from": "../output",
+        "to": "app/output",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "node_modules/three",
+        "to": "app/three",
+        "filter": [
+          "package.json",
+          "LICENSE",
+          "build/**",
+          "examples/jsm/**"
+        ]
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Graphics"
+    }
+  }
+}

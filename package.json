@@ -11,6 +11,8 @@
   "scripts": {
     "test": "node --test --test-concurrency=4 \"tests/*.test.mjs\"",
     "test:cloth": "node --test tests/cloth.test.mjs",
-    "integrity": "node tools/cloth_integrity.mjs"
+    "integrity": "node tools/cloth_integrity.mjs",
+    "desktop": "npm --prefix desktop start",
+    "desktop:dist": "npm --prefix desktop run dist"
   }
 }
