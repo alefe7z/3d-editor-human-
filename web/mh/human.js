@@ -4,9 +4,10 @@
 // positions = base + sum(weight_i * target_i); all in MakeHuman decimetres (multiply by 0.1 for metres).
 
 export const DEFAULT_MACROS = {
-  gender: 0.5, age: 0.5, muscle: 0.5, weight: 0.5, proportions: 0.5, height: 0.5,
+  gender: 0.5, age: 0.5, muscle: 0.5, weight: 0.5, proportions: 0.5, height: 0.5, cupsize: 0.5, firmness: 0.5,
   race: { asian: 1 / 3, caucasian: 1 / 3, african: 1 / 3 },
 };
+const MACRO_KEYS = ['gender', 'age', 'muscle', 'weight', 'proportions', 'height', 'cupsize', 'firmness'];
 
 const r4 = x => Math.round(x * 1e4) / 1e4;
 
@@ -38,7 +39,8 @@ const clamp01 = v => Math.min(1, Math.max(0, Number.isFinite(+v) ? +v : 0.5));
 export function targetStack(macro, macros, cutoff = 0.01) {
   const m = { ...DEFAULT_MACROS, ...macros };
   const c = {};
-  for (const k of ['gender', 'age', 'muscle', 'weight', 'proportions', 'height']) c[k] = interpolate(macro.macrotargets[k], clamp01(m[k]));
+  // cupsize / firmness are optional in the data (older macro.json): no parts -> no breast targets
+  for (const k of MACRO_KEYS) c[k] = macro.macrotargets[k] ? interpolate(macro.macrotargets[k], clamp01(m[k])) : [];
   const t = [];
   for (const [race, rw] of Object.entries(m.race || {})) if (rw > 0.0001)
     for (const [a, aw] of c.age) for (const [g, gw] of c.gender) {
@@ -54,6 +56,12 @@ export function targetStack(macro, macros, cutoff = 0.01) {
       // there are no baby proportions targets on disk (MPFB excludes them the same way)
       const w2 = w * pw;
       if (w2 > cutoff && a !== 'baby') t.push([`macrodetails/proportions/${g}-${a}-${mu}-${we}-${p}`, w2]);
+    }
+    // breast macros: female targets only, and (like MPFB) NOT scaled by the gender weight, because there are no
+    // male counterparts. No baby targets, and averagecup-averagefirmness is the neutral breast (no file).
+    if (g === 'female' && a !== 'baby') for (const [cu, cw] of c.cupsize) for (const [fi, fw] of c.firmness) {
+      const w2 = aw * mw * ww * cw * fw;
+      if (w2 > cutoff && !(cu === 'averagecup' && fi === 'averagefirmness')) t.push([`breast/female-${a}-${mu}-${we}-${cu}-${fi}`, w2]);
     }
   }
   return t;
@@ -84,6 +92,7 @@ export class Human {
     this.index = new Uint32Array(buf, o, nIdx);
     this.work = new Float32Array(nBody * 3);
     this.workN = new Float32Array(nBody * 3);
+    this.available = Array.isArray(this.meta.targets) ? new Set(this.meta.targets) : null;   // null: not listed
     this.positions = new Float32Array(nVerts * 3);   // render positions in metres
     this.normals = new Float32Array(nVerts * 3);     // smooth across UV seams (computed on the welded body mesh)
     return this;
@@ -100,16 +109,24 @@ export class Human {
     return p;
   }
 
-  /** Apply macro values; returns the (re-used) render position array in metres. Calls are serialised, so
-   *  overlapping calls never mix their sums in the shared work buffer; each resolves after its own result. */
-  apply(macros) {
-    const run = this.queue.then(() => this._apply(macros));
+  /** True when the packed data has this target (always true for data without a target list). */
+  has(name) { return !this.available || this.available.has(name); }
+
+  /** Apply macro values plus optional detail targets ({ 'nose/nose-trans-up': 0.4, ... }, weights > 0; see
+   *  web/mh/details.js). Returns the (re-used) render position array in metres. Targets missing from the packed
+   *  data are skipped and listed in lastMissing (old web/data: re-run tools/export_data.py). Calls are serialised,
+   *  so overlapping calls never mix their sums in the shared work buffer; each resolves after its own result. */
+  apply(macros, details = {}) {
+    const run = this.queue.then(() => this._apply(macros, details));
     this.queue = run.catch(() => {});
     return run;
   }
 
-  async _apply(macros) {
-    const stack = targetStack(this.macro, macros), step = this.meta.deltaStep, w = this.work;
+  async _apply(macros, details) {
+    const full = targetStack(this.macro, macros);
+    for (const [name, v] of Object.entries(details || {})) if (Number.isFinite(v) && v > 0) full.push([name, v]);
+    const stack = full.filter(([n]) => this.has(n)), step = this.meta.deltaStep, w = this.work;
+    this.lastMissing = full.filter(([n]) => !this.has(n)).map(([n]) => n);
     const targets = await Promise.all(stack.map(([name]) => this.target(name)));  // fetch in parallel
     w.set(this.base);
     for (let s = 0; s < stack.length; s++) {
