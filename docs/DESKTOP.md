@@ -11,6 +11,8 @@ Needs Node.js 22+. In a terminal (PowerShell) in the repo:
     npm start              # runs the app from the repo (web/ + output/ as they are now)
     npm run dist           # builds dist\CharacterCreator Setup 0.1.0.exe (installer) and dist\CharacterCreator 0.1.0.exe (portable)
 
+To include the runtime generator, first run `python tools/export_data.py` in the repo root (it writes `web/data`).
+
 From the repo root: `npm run desktop` / `npm run desktop:dist` do the same. Rebuild after changing `web/` or `output/`:
 the installer carries a copy of both. The exe is not code-signed, so Windows SmartScreen asks "Run anyway" the first
 time (signing needs a certificate: electron-builder `win.certificateFile`).
@@ -26,8 +28,8 @@ time (signing needs a certificate: electron-builder `win.certificateFile`).
   `three/examples/jsm`.
 - Window: context isolation + sandbox, no Node in the page; links to the web open in the system browser; the window
   never navigates away from `app://`. Menu (pt-BR): Editor (Ctrl+1), runtime generator (Ctrl+2, only when `web/data`
-  exists), reload, dev tools, zoom, full screen. `web/data` (the generator's 29 MB) is NOT packaged; run
-  `python tools/export_data.py` and use `npm start` for the generator.
+  exists), reload, dev tools, zoom, full screen. `web/data` (the generator's data, ~29 MB, CC0 MakeHuman targets) is
+  packaged when it exists: run `python tools/export_data.py` before `npm run dist` to ship the generator.
 - The export (Export glTF) shows a save dialog; settings load / save work as in the browser.
 
 ## Verified (2026-11-27, Linux container, Xvfb + swiftshader, Playwright's Electron driver)
