@@ -11,6 +11,7 @@ import { createBreastPhysics, breastMotionScale, combineSupport, zeroWeights, DY
 import { createHumanoid } from './humanoid.js';
 import { createAnimator, SPEED_MIN, SPEED_MAX } from './animation/animator.js';
 import { CLIPS } from './animation/clips.js';
+import { supportPose } from './animation/support-pose.js';
 import { createIdleVariation } from './animation/idlevary.js';
 import { createEyeLife, applyMorphWeights } from './eyelife.js';
 import { APPEARANCE, CHEST_APPEARANCE, normalizeAppearance } from './appearance.js';
@@ -20,6 +21,10 @@ import { createClothing } from './clothing.js';
 import { createClothRuntime } from './cloth/runtime.js';
 import { createExporter } from './export/exporter.js';
 
+const VIEWER_CLIPS = {
+  ...CLIPS,
+  support_stance: { loop: true, duration: 1, timing: () => ({ duration: 1, speed: 0 }), sample: supportPose },
+};
 window.__booted = true;
 const params = new URLSearchParams(location.search);
 
@@ -36,6 +41,7 @@ const I18N = {
     externalOuterSeparation: 'Afstand mellem ydre kønslæber', externalInnerSeparation: 'Afstand mellem indre kønslæber', externalInnerLength: 'Længde af indre kønslæber',
     externalAsymmetry: 'Asymmetri', externalGlansSize: 'Klitorisglansens størrelse', externalGlansProjection: 'Klitorisglansens fremspring',
     externalUrethralRelief: 'Urinrørsåbningens relief', externalIntroitusRelief: 'Skedeåbningens relief',
+    clip_support_stance: 'Firepunktsstilling',
     secExternal: 'Ydre anatomi', externalFullness: 'Fylde over skambenet', externalWidth: 'Konturbredde', externalOuterContour: 'Ydre kønslæber', externalFoldRelief: 'Indre kønslæber', externalHood: 'Klitorishætte', externalVestibule: 'Vestibulens dybde', externalMotion: 'Bevægelsesstyrke',
     secGlutes: 'Balder og hofter', gluteVolume: 'Volumen', gluteProjection: 'Fremspring', gluteWidth: 'Bredde', gluteRoundness: 'Rundhed', gluteLift: 'Løft', gluteSoftness: 'Blød kontur', gluteMotion: 'Bevægelse bagpå', frontHipMotion: 'Bevægelse foran', hipFront: 'Forfra', glutePreview: 'Vis bevægelse i gang', gluteBack: 'Bagfra', gluteSide: 'Fra siden',
     secBreast: 'Bryster', breastSize: 'Størrelse', breastSizeExact: 'Indtast størrelse (også uden for skyderens område)', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
@@ -73,6 +79,7 @@ const I18N = {
     externalOuterSeparation: 'Outer labia separation', externalInnerSeparation: 'Inner labia separation', externalInnerLength: 'Inner labia length',
     externalAsymmetry: 'Asymmetry', externalGlansSize: 'Clitoral glans size', externalGlansProjection: 'Clitoral glans projection',
     externalUrethralRelief: 'Urethral opening relief', externalIntroitusRelief: 'Vaginal opening relief',
+    clip_support_stance: 'Four-point support pose',
     secExternal: 'External anatomy', externalFullness: 'Pubic fullness', externalWidth: 'Contour width', externalOuterContour: 'Outer labia contour', externalFoldRelief: 'Inner labia relief', externalHood: 'Clitoral hood', externalVestibule: 'Vestibule depth', externalMotion: 'Motion intensity',
     secGlutes: 'Glutes and hips', gluteVolume: 'Volume', gluteProjection: 'Projection', gluteWidth: 'Width', gluteRoundness: 'Roundness', gluteLift: 'Lift', gluteSoftness: 'Soft contour', gluteMotion: 'Rear motion intensity', frontHipMotion: 'Front hip motion intensity', hipFront: 'Front view', glutePreview: 'Preview motion while walking', gluteBack: 'Back view', gluteSide: 'Side view',
     secBreast: 'Chest', breastSize: 'Size', breastSizeExact: 'Enter size (values outside the slider range allowed)', breastFirmness: 'Firmness (lift)', breastHeight: 'Position (low ↔ high)',
@@ -754,7 +761,7 @@ const al = document.createElement('label'); al.textContent = t('anim');
 const animSel = document.createElement('select');
 animSel.setAttribute('aria-label', t('anim'));
 animSel.append(new Option(t('animNone'), ''));
-for (const n of Object.keys(CLIPS)) animSel.append(new Option(clipLabel(n), n));
+for (const n of Object.keys(VIEWER_CLIPS)) animSel.append(new Option(clipLabel(n), n));
 const playBtn = Object.assign(document.createElement('button'), { type: 'button', textContent: t('pause'), disabled: true });
 // one-shot trigger: jump from whatever plays, then back to the looping clip that played before (or idle)
 const jumpBtn = Object.assign(document.createElement('button'), { type: 'button', textContent: t('jumpNow') });
@@ -801,12 +808,12 @@ speedIn.oninput = () => { animator?.setSpeed(+speedIn.value); sv.textContent = (
 
 function initAnimation() {
   humanoid = createHumanoid(body);
-  animator = createAnimator(humanoid, { getBody: bodyValues });
+  animator = createAnimator(humanoid, { getBody: bodyValues, clips: VIEWER_CLIPS });
   idleVary = createIdleVariation({ seed: +params.get('idleSeed') || (params.has('shot') ? 1 : 1 + Math.floor(Math.random() * 1e9)) });
   // URL params for tests/screenshots: ?anim=walk&animT=0.3 (seek + pause)&animSpeed=1.5
   if (params.has('animSpeed')) animator.setSpeed(+params.get('animSpeed'));
   const a = params.get('anim');
-  if (a && CLIPS[a]) {
+  if (a && VIEWER_CLIPS[a]) {
     animator.play(a, { fade: 0 });
     if (params.has('animT')) { animator.seek(+params.get('animT')); animator.pause(); }
     animator.update(0);

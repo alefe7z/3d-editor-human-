@@ -80,10 +80,41 @@ function externalDeltas(x, y, z) {
   };
 }
 
+/** Keep the central surface tied to the pelvis while the inner thighs rotate. */
+export function stabilizePelvicSkin(geometry, pelvisIndex) {
+  if (pelvisIndex < 0) return;
+  const { position, skinIndex, skinWeight } = geometry.attributes;
+  if (!skinIndex || !skinWeight) return;
+  for (let i = 0; i < position.count; i++) {
+    const x = position.getX(i), y = position.getY(i), z = position.getZ(i);
+    const blend = (1 - smooth(0.038, 0.092, Math.abs(x)))
+      * smooth(0.725, 0.752, y) * (1 - smooth(0.850, 0.910, y))
+      * smooth(-0.070, -0.026, z);
+    if (!blend) continue;
+    const combined = new Map([[pelvisIndex, blend]]);
+    for (let c = 0; c < 4; c++) {
+      const joint = skinIndex.getComponent(i, c);
+      const weight = skinWeight.getComponent(i, c) * (1 - blend);
+      combined.set(joint, (combined.get(joint) ?? 0) + weight);
+    }
+    const leading = [...combined].sort((a, b) => b[1] - a[1]).slice(0, 4);
+    const total = leading.reduce((sum, [, weight]) => sum + weight, 0);
+    for (let c = 0; c < 4; c++) {
+      const [joint, weight] = leading[c] ?? [0, 0];
+      skinIndex.setComponent(i, c, joint);
+      skinWeight.setComponent(i, c, weight / total);
+    }
+  }
+  skinIndex.needsUpdate = skinWeight.needsUpdate = true;
+}
+
 export function installPelvisMorphs(mesh, { external = false } = {}) {
   const geometry = mesh.geometry;
   if (!geometry?.attributes.position || installed.has(geometry) || !geometry.morphTargetsRelative) return;
-  if (external) refineExternalAnatomy(geometry);
+  if (external) {
+    refineExternalAnatomy(geometry);
+    stabilizePelvicSkin(geometry, mesh.skeleton?.bones.findIndex(bone => bone.name === 'pelvis') ?? -1);
+  }
   const position = geometry.attributes.position;
   const deltas = Object.fromEntries(Object.keys(pelvisDeltas(0, 0, 0, external))
     .map(name => [name, new Float32Array(position.count * 3)]));
