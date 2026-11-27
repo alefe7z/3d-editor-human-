@@ -5,6 +5,7 @@ export const CHEST_APPEARANCE = Object.freeze({
   nippleRelief: 0,
   nippleWidth: 0.5,
   nippleTip: 0.5,
+  breastMotion: 0.5,
 });
 
 export const APPEARANCE = Object.freeze({

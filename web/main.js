@@ -32,7 +32,7 @@ const I18N = {
     small: 'Lille', medium: 'Mellem', large: 'Stor', full: 'Fyldig', rounded: 'Rund', sloped: 'Dråbeformet', projected: 'Fremspringende', wideSet: 'Bred afstand',
     inspectChest: 'Skjul tøj over brystet', chestFront: 'Forfra', chestSide: 'Fra siden', resetChest: 'Nulstil brystindstillinger',
     secBreast: 'Bryster', breastSize: 'Størrelse', breastSizeExact: 'Indtast størrelse (også uden for skyderens område)', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
-    breastSpacing: 'Afstand', breastProjection: 'Form (rund ↔ spids)', breastPhysics: 'Brystfysik',
+    breastSpacing: 'Afstand', breastProjection: 'Form (rund ↔ spids)', breastPhysics: 'Brystfysik', breastMotion: 'Bevægelsesstyrke', previewMotion: 'Forhåndsvis brystbevægelse',
     age: 'Alder (barn ↔ gammel)', height: 'Højde', weight: 'Vægt',
     muscle: 'Muskler', proportions: 'Proportioner', skin: 'Hudfarve', reset: 'Nulstil',
     hair: 'Frisure', hairNone: 'Skaldet', hairColor: 'Hårfarve', browColor: 'Øjenbrynsfarve', eyeColor: 'Øjenfarve',
@@ -63,7 +63,7 @@ const I18N = {
     small: 'Small', medium: 'Medium', large: 'Large', full: 'Full volume', rounded: 'Rounded', sloped: 'Sloped', projected: 'Projected', wideSet: 'Wide-set',
     inspectChest: 'Hide chest garments for inspection', chestFront: 'Front view', chestSide: 'Side view', resetChest: 'Reset chest settings',
     secBreast: 'Chest', breastSize: 'Size', breastSizeExact: 'Enter size (values outside the slider range allowed)', breastFirmness: 'Firmness (lift)', breastHeight: 'Position (low ↔ high)',
-    breastSpacing: 'Spacing', breastProjection: 'Shape (round ↔ pointed)', breastPhysics: 'Breast physics',
+    breastSpacing: 'Spacing', breastProjection: 'Shape (round ↔ pointed)', breastPhysics: 'Breast physics', breastMotion: 'Motion intensity', previewMotion: 'Preview chest motion',
     age: 'Age (child ↔ old)', height: 'Height', weight: 'Weight',
     muscle: 'Muscle', proportions: 'Proportions', skin: 'Skin colour', reset: 'Reset',
     hair: 'Hair style', hairNone: 'Bald', hairColor: 'Hair colour', browColor: 'Eyebrow colour', eyeColor: 'Eye colour',
@@ -525,12 +525,20 @@ chestPreset('sizePreset', BREAST_SIZE_PRESETS, breastSize => ({ breastSize }));
 chestPreset('shapePreset', BREAST_SHAPE_PRESETS, shape => shape);
 for (const s of chestSliders) slider(secBreast, s);
 checkbox(secBreast, 'breastPhysics');
+const previewMotionLabel = Object.assign(document.createElement('label'), { className: 'check' });
+const previewMotionToggle = Object.assign(document.createElement('input'), { type: 'checkbox' });
+previewMotionLabel.append(previewMotionToggle, document.createTextNode(` ${t('previewMotion')}`));
+secBreast.append(previewMotionLabel);
+previewMotionToggle.onchange = () => {
+  if (previewMotionToggle.checked) window.__set('breastPhysics', true);
+};
 for (const id of Object.keys(CHEST_APPEARANCE)) slider(secBreast, { id, min: 0 });
 const inspectChestLabel = Object.assign(document.createElement('label'), { className: 'check', hidden: true });
 const inspectChestToggle = Object.assign(document.createElement('input'), { type: 'checkbox' });
 inspectChestLabel.append(inspectChestToggle, document.createTextNode(` ${t('inspectChest')}`));
 const resetChestButton = Object.assign(document.createElement('button'), { type: 'button', textContent: t('resetChest') });
 resetChestButton.onclick = () => {
+  previewMotionToggle.checked = false;
   const defaults = Object.fromEntries(chestSliders.map(({ id }) => [id, DEFAULT_BODY[id]]));
   for (const [id, value] of Object.entries({ ...defaults, ...CHEST_APPEARANCE, breastPhysics: DEFAULT_TOGGLES.breastPhysics })) {
     values[id] = value;
@@ -546,11 +554,16 @@ function setChestInspection(enabled) {
 }
 inspectChestToggle.onchange = () => setChestInspection(inspectChestToggle.checked);
 secBreast.addEventListener('toggle', () => {
-  if (!secBreast.open) setChestInspection(false);
+  if (!secBreast.open) {
+    setChestInspection(false);
+    previewMotionToggle.checked = false;
+  }
 });
 function syncSexUI() {
   const female = sexOf(values) === 'female';
   secBreast.hidden = !female;
+  previewMotionLabel.hidden = breastGate(values) < 1;
+  if (previewMotionLabel.hidden || !values.breastPhysics) previewMotionToggle.checked = false;
   inspectChestLabel.hidden = breastGate(values) < 1;
   if (inspectChestLabel.hidden && inspectChestToggle.checked) setChestInspection(false);
   inputs.gender?.show(values.gender);
@@ -617,6 +630,7 @@ secClothes.append(hideAllClothesLabel, removeAllClothesButton);
 
 const resetBtn = Object.assign(document.createElement('button'), { type: 'button', textContent: t('reset') });
 resetBtn.onclick = () => {
+  previewMotionToggle.checked = false;
   setChestInspection(false);
   setAllClothingHidden(false);
   for (const s of SLIDERS) { values[s.id] = DEFAULT_BODY[s.id]; inputs[s.id]?.show(values[s.id]); }
@@ -874,6 +888,22 @@ const breastRig = { bone: null, restQ: null };
 const _bp = new THREE.Vector3(), _bq = new THREE.Quaternion();
 let breastWeights = zeroWeights(), breastScale = 0, breastSupport = 0, breastMs = 0, breastApplied = true;
 let breastZeroed = new WeakSet();
+let previewPhase = 0, previewBlend = 0;
+const previewForce = [0, 0, 0];
+function chestPreviewForce(dt) {
+  const step = Math.min(dt, 0.05);
+  const target = previewMotionToggle.checked ? 1 : 0;
+  previewBlend += (target - previewBlend) * (1 - Math.exp(-step * 6));
+  if (!target && previewBlend < 0.001) {
+    previewBlend = previewPhase = 0;
+    return null;
+  }
+  previewPhase = (previewPhase + step * Math.PI * 2 * 0.9) % (Math.PI * 2);
+  previewForce[0] = Math.sin(previewPhase) * previewBlend * 0.65;
+  previewForce[1] = Math.sin(previewPhase * 2) * previewBlend * 1.8;
+  previewForce[2] = Math.sin(previewPhase * 2 - 0.7) * previewBlend * 0.4;
+  return previewForce;
+}
 function initBreastRig() {                      // at rest, before any clip plays (like initEyeRig)
   scene.updateMatrixWorld(true);
   breastRig.bone = body.skeleton.bones.find(b => b.name === 'spine_03') ?? null;
@@ -883,14 +913,15 @@ function updateBreast(dt) {
   const t0 = performance.now();
   const support = breastSupport = combineSupport(clothing.worn().map(id => BREAST_SUPPORT[id] ?? 0));
   breastScale = values.breastPhysics && breastRig.bone
-    ? breastMotionScale({ gate: breastGate(values), size: values.breastSize, firmness: values.breastFirmness, support }) : 0;
+    ? breastMotionScale({ gate: breastGate(values), size: values.breastSize, firmness: values.breastFirmness, support }) * 2 * values.breastMotion : 0;
   if (breastScale > 0) {
     breastRig.bone.getWorldPosition(_bp);
     breastRig.bone.getWorldQuaternion(_bq).multiply(breastRig.restQ);
-    breastWeights = breast.step(dt, [_bp.x, _bp.y, _bp.z], [_bq.x, _bq.y, _bq.z, _bq.w], breastScale, support);
+    breastWeights = breast.step(dt, [_bp.x, _bp.y, _bp.z], [_bq.x, _bq.y, _bq.z, _bq.w], breastScale, support, chestPreviewForce(dt));
     for (const m of parts) applyMorphWeights(m, breastWeights);
     breastApplied = true;
   } else {                                       // off / male: zero the morphs once per part
+    if (!previewMotionToggle.checked) previewBlend = previewPhase = 0;
     if (breastApplied) { breast.reset(); breastWeights = zeroWeights(); breastZeroed = new WeakSet(); breastApplied = false; }
     // a garment loaded later (outfit change, default underwear) starts with its glTF default weights, which are 1
     // for every target: without this its six dyn_breast_* morphs stayed at 1 while the body's were 0

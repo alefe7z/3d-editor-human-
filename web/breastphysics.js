@@ -129,7 +129,7 @@ export function createBreastPhysics(opts = {}) {
   const P = spring.params;
   let p1 = null, p2 = null, dt1 = 0, weights = zeroWeights(), lastForce = [0, 0, 0];
   function reset() { spring.reset(); p1 = p2 = null; dt1 = 0; weights = zeroWeights(); lastForce = [0, 0, 0]; }
-  function step(dt, pos, rot, scale, support = 0) {
+  function step(dt, pos, rot, scale, support = 0, previewForce = null) {
     dt = fin(dt);
     if (!(scale > 0)) { if (p1 || spring.state().x.some(Boolean)) reset(); return weights; }
     if (dt <= 0) return weights;
@@ -144,6 +144,7 @@ export function createBreastPhysics(opts = {}) {
     p2 = p1; p1 = [...pos]; dt1 = dt;
     const aL = rotInv(q, a), gL = rotInv(q, [0, -9.81, 0]);
     lastForce = [gL[0] - aL[0], gL[1] + 9.81 - aL[1], gL[2] - aL[2]];
+    if (previewForce) for (let i = 0; i < 3; i++) lastForce[i] += fin(previewForce[i]);
     const x = spring.update(dt, lastForce, support);
     weights = dynWeights(x, scale, P);
     return weights;

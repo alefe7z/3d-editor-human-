@@ -18,6 +18,11 @@ skin-region mask and follow the age and sex gate used by the chest controls.
 The relief changes shading without displacing the mesh. JSON presets and GLB
 metadata preserve the values. The local skin effects require the web shader.
 
+Use **Preview chest motion** to run a gentle loop through the same damped
+spring used during animation. **Motion intensity** adjusts both the preview
+and animation-driven motion. The loop itself is a viewer preview, not a GLB
+animation clip.
+
 ## Use the creator from a web host
 
 Use `python tools/serve_offline.py` to serve the editor and bundled assets
