@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { BufferAttribute } from 'three';
 
-const inPatch = (x, y, z) => Math.abs(x) < 0.047 && y > 0.748 && y < 0.861 && z > 0.013;
+const inPatch = (x, y, z) => Math.abs(x) < 0.047 && y > 0.748 && y < 0.861 && z > -0.036;
 
 /** Split only local triangles and their shared edges, preserving the base surface and UV seams. */
 export function refineExternalAnatomy(geometry) {

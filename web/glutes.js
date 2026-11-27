@@ -48,28 +48,34 @@ function externalDeltas(x, y, z) {
   const outer = band(side, 0.023, 0.012) * band(y, 0.785, 0.029) * contour;
   const innerCenter = 0.007 + 0.004 * band(y, 0.785, 0.016);
   const inner = band(side, innerCenter, 0.0045) * band(y, 0.786, 0.017) * contour;
-  const hood = band(side, 0.003, 0.006) * band(y, 0.804, 0.007) * anterior;
-  const vestibule = band(side, 0, 0.006) * band(y, 0.781, 0.011) * contour;
-  const glans = band(side, 0, 0.004) * band(y, 0.8, 0.0045) * anterior;
-  const glansShoulder = band(side, 0, 0.0065) * band(y, 0.8, 0.007) * anterior;
-  const urethral = band(side, 0, 0.0022) * band(y, 0.791, 0.0028) * anterior;
-  const introitus = band(side, 0, 0.006) * band(y, 0.776, 0.006) * anterior;
+  const hood = band(side, 0.003, 0.006) * band(z, 0.085, 0.010) * band(y, 0.795, 0.013) * anterior;
+  const vestibule = band(side, 0, 0.007) * band(z, 0.044, 0.026) * band(y, 0.784, 0.013);
+  // From the underside toward the front, rotate the sculpting direction smoothly.
+  const frontFacing = smooth(0.02, 0.105, z);
+  const angle = frontFacing * Math.PI / 2;
+  const relief = depth => [0, -depth * Math.cos(angle), depth * Math.sin(angle)];
+  const lowerOuter = band(side, 0.018, 0.011) * band(y, 0.784, 0.022)
+    * smooth(-0.034, 0.005, z) * (1 - smooth(0.030, 0.075, z));
+  const glans = band(side, 0, 0.004) * band(z, 0.072, 0.007) * band(y, 0.789, 0.012) * anterior;
+  const glansShoulder = band(side, 0, 0.0065) * band(z, 0.072, 0.010) * band(y, 0.789, 0.013) * anterior;
+  const urethral = band(side, 0, 0.0022) * band(z, 0.052, 0.005) * band(y, 0.786, 0.008) * anterior;
+  const introitus = band(side, 0, 0.006) * band(z, 0.028, 0.009) * band(y, 0.784, 0.009);
   const lateral = Math.sign(x) * smooth(0, 0.006, side);
   return {
     externalFullness: [0, 0, 0.011 * pubic],
     externalWidth: [x * 0.38 * contour, 0, 0],
-    externalOuterContour: [0, 0, 0.008 * outer],
-    externalFoldRelief: [0, 0, 0.006 * inner],
+    externalOuterContour: relief(0.007 * outer + 0.005 * lowerOuter),
+    externalFoldRelief: relief(0.006 * inner),
     externalOuterSeparation: [lateral * 0.0045 * outer, 0, 0],
     externalInnerSeparation: [lateral * 0.0035 * inner, 0, 0],
     externalInnerLength: [0, (y - 0.786) * inner * 0.65, 0],
     externalAsymmetry: [0, 0, lateral * (0.003 * outer + 0.002 * inner)],
-    externalHood: [0, 0, 0.0035 * hood],
-    externalGlansSize: [x * 0.6 * glansShoulder, (y - 0.8) * 0.55 * glansShoulder, 0.0015 * glansShoulder],
-    externalGlansProjection: [0, 0, 0.003 * glans],
-    externalUrethralRelief: [0, 0, -0.0012 * urethral],
-    externalIntroitusRelief: [0, 0, -0.0035 * introitus],
-    externalVestibule: [0, 0, -0.004 * vestibule],
+    externalHood: relief(0.0035 * hood),
+    externalGlansSize: [x * 0.6 * glansShoulder, (y - 0.789) * 0.55 * glansShoulder, 0.0015 * glansShoulder],
+    externalGlansProjection: relief(0.003 * glans),
+    externalUrethralRelief: relief(-0.0012 * urethral),
+    externalIntroitusRelief: relief(-0.0035 * introitus),
+    externalVestibule: relief(-0.004 * vestibule),
     [EXTERNAL_MOTION]: [0, 0.0025 * contour, 0.001 * contour],
   };
 }
