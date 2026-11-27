@@ -110,6 +110,19 @@ are deterministic). Sex: `__set('sex', 'male'|'female'|1|0)` (`__values().sex`);
 `ArrayBuffer`, `window.__exportSettings()`, `await window.__loadSettings(settings)`, `window.__shareLink()`, `window.__exportStats()`, URL param
 `?character=<base64url JSON | JSON | url.json>`.
 
+## Portable Windows executable
+
+Build the launcher with Python 3 and Go 1.24 or later:
+
+```sh
+python tools/build_windows.py
+```
+
+Open `build/CharacterCreator-windows-amd64.exe` on 64-bit Windows. For a native
+Windows on ARM build, pass `--arch arm64`. The executable includes the renderer
+and models, starts a loopback server and opens the default browser. The target PC
+only needs a WebGL 2 browser. Keep the console window open while editing.
+
 ## Tests and baking the animations
 
 ```powershell
