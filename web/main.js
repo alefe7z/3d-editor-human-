@@ -13,7 +13,7 @@ import { createAnimator, SPEED_MIN, SPEED_MAX } from './animation/animator.js';
 import { CLIPS } from './animation/clips.js';
 import { createIdleVariation } from './animation/idlevary.js';
 import { createEyeLife, applyMorphWeights } from './eyelife.js';
-import { APPEARANCE, normalizeAppearance } from './appearance.js';
+import { APPEARANCE, CHEST_APPEARANCE, normalizeAppearance } from './appearance.js';
 import { upgradeSkin, upgradeHair, upgradeCornea, setSkinParams, setAppearance, updateHairMotion, hairUniforms, createHairCollider } from './materials.js';
 import { createClothing } from './clothing.js';
 import { createClothRuntime } from './cloth/runtime.js';
@@ -27,6 +27,7 @@ const I18N = {
   da: {
     secSurface: 'Hud- og hårdetaljer', skinPores: 'Porer', skinRoughness: 'Hudens ruhed', skinScattering: 'Lysspredning', skinFuzz: 'Dun', skinWrinkles: 'Rynker', hairShine: 'Hårets glans', hairMotion: 'Hårbevægelse',
     sex: 'Køn', sexMale: 'Mand', sexFemale: 'Kvinde',
+    areolaPigmentation: 'Areolapigmentering', areolaCoverage: 'Pigmentets udstrækning', nippleRelief: 'Brystvortens relief',
     secBreast: 'Bryster', breastSize: 'Størrelse', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
     breastSpacing: 'Afstand', breastProjection: 'Form (rund ↔ spids)', breastPhysics: 'Brystfysik',
     age: 'Alder (barn ↔ gammel)', height: 'Højde', weight: 'Vægt',
@@ -53,6 +54,7 @@ const I18N = {
   en: {
     secSurface: 'Skin and hair detail', skinPores: 'Pores', skinRoughness: 'Skin roughness', skinScattering: 'Skin scattering', skinFuzz: 'Skin fuzz', skinWrinkles: 'Wrinkle detail', hairShine: 'Hair shine', hairMotion: 'Hair motion',
     sex: 'Sex', sexMale: 'Male', sexFemale: 'Female',
+    areolaPigmentation: 'Areola pigmentation', areolaCoverage: 'Pigment coverage', nippleRelief: 'Nipple surface relief',
     secBreast: 'Chest', breastSize: 'Size', breastFirmness: 'Firmness (lift)', breastHeight: 'Position (low ↔ high)',
     breastSpacing: 'Spacing', breastProjection: 'Shape (round ↔ pointed)', breastPhysics: 'Breast physics',
     age: 'Age (child ↔ old)', height: 'Height', weight: 'Weight',
@@ -458,6 +460,7 @@ for (const s of SLIDERS.filter(x => x.group === 'body' && !x.binary)) slider(sec
 const secBreast = section('secBreast');
 for (const s of SLIDERS.filter(x => x.group === 'breast')) slider(secBreast, s);
 checkbox(secBreast, 'breastPhysics');
+for (const id of Object.keys(CHEST_APPEARANCE)) slider(secBreast, { id, min: 0 });
 function syncSexUI() {
   const female = sexOf(values) === 'female';
   secBreast.hidden = !female;
@@ -479,7 +482,9 @@ checkbox(secEyes, 'blink');
 }
 const secLooks = section('secLooks');
 const surface = section('secSurface', false);
-for (const id of Object.keys(APPEARANCE)) slider(surface, { id, min: 0 });
+for (const id of Object.keys(APPEARANCE)) {
+  if (!Object.hasOwn(CHEST_APPEARANCE, id)) slider(surface, { id, min: 0 });
+}
 function colorInput(id, label) {
   const cl = document.createElement('label'); cl.textContent = label;
   const c = Object.assign(document.createElement('input'), { type: 'color', value: values[id] });

@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
+export const CHEST_APPEARANCE = Object.freeze({
+  areolaPigmentation: 0.5,
+  areolaCoverage: 0.5,
+  nippleRelief: 0,
+});
+
 export const APPEARANCE = Object.freeze({
+  ...CHEST_APPEARANCE,
   skinPores: 0.35,
   skinRoughness: 0.56,
   skinScattering: 1,

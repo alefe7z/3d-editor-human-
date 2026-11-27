@@ -21,6 +21,7 @@
 // Cornea: a small fixed catchlight (view-space light direction) so the eyes read alive in any lighting.
 import * as THREE from 'three';
 import { APPEARANCE } from './appearance.js';
+import { breastGate } from './character.js';
 
 const CC = { PORE_REPEAT: 42, PORE_STRENGTH: 0.35 };
 
@@ -89,6 +90,10 @@ export const skinUniforms = {
   ccRoughness: { value: APPEARANCE.skinRoughness },
   ccFuzz: { value: APPEARANCE.skinFuzz },
   ccWrinkles: { value: 0 },
+  ccChestGate: { value: 0 },
+  ccAreolaPigment: { value: 0 },
+  ccAreolaCoverage: { value: 0.5 },
+  ccNippleRelief: { value: 0 },
 };
 
 /** Areola tone-down from the gender slider (-1 female .. 1 male): 0 for female, ~0.35 neutral, 0.7 male. */
@@ -119,15 +124,40 @@ uniform sampler2D ccRegions; uniform float ccHasRegions; uniform vec3 ccWrap; un
 uniform float ccAreola; uniform float ccInvGain; uniform float ccSSS;
 uniform sampler2D ccPores; uniform float ccPoreRepeat; uniform float ccPoreStrength;
 uniform float ccRoughness; uniform float ccFuzz; uniform float ccWrinkles;
-float ccThinV = 0.0;`);
+uniform float ccChestGate; uniform float ccAreolaPigment; uniform float ccAreolaCoverage; uniform float ccNippleRelief;
+float ccThinV = 0.0;
+float ccReliefHeight = 0.0;`);
     f = insertAfter(f, '#include <map_fragment>', `
 #ifdef USE_MAP
   if ( ccHasRegions > 0.5 ) {
     vec3 ccReg = texture2D( ccRegions, vMapUv ).rgb;
     ccThinV = ccReg.r * ccSSS;
-    diffuseColor.rgb = mix( diffuseColor.rgb, diffuse * ccInvGain * 0.97, clamp( ccReg.g * 1.4, 0.0, 1.0 ) * ccAreola );
+    vec3 ccSkinTone = diffuse * ccInvGain * 0.97;
+    float ccMask = clamp( ccReg.g, 0.0, 1.0 );
+    diffuseColor.rgb = mix( diffuseColor.rgb, ccSkinTone, clamp( ccMask * 1.4, 0.0, 1.0 ) * ccAreola );
+    float ccCoverage = smoothstep( mix( 0.62, 0.12, ccAreolaCoverage ),
+      mix( 0.83, 0.33, ccAreolaCoverage ), ccMask );
+    float ccDefaultCoverage = smoothstep( 0.37, 0.58, ccMask );
+    float ccContract = max( ccDefaultCoverage - ccCoverage, 0.0 );
+    float ccExpand = max( ccCoverage - ccDefaultCoverage, 0.0 );
+    float ccLighten = ccContract * 0.6 + ccCoverage * max( -ccAreolaPigment, 0.0 ) * 0.65;
+    float ccDarken = ccExpand * 0.18 + ccCoverage * max( ccAreolaPigment, 0.0 ) * 0.5;
+    diffuseColor.rgb = mix( diffuseColor.rgb, ccSkinTone, ccLighten * ccChestGate );
+    diffuseColor.rgb *= 1.0 - ccDarken * ccChestGate;
+    ccReliefHeight = pow( ccMask, 8.0 ) * ccNippleRelief;
   }
 #endif`);
+    f = insertAfter(f, '#include <normal_fragment_maps>', `
+  // A height-field normal perturbation keeps the imported mesh and garment fit intact.
+  vec3 ccDx = dFdx( -vViewPosition );
+  vec3 ccDy = dFdy( -vViewPosition );
+  vec3 ccRx = cross( ccDy, normal );
+  vec3 ccRy = cross( normal, ccDx );
+  float ccDet = dot( ccDx, ccRx );
+  vec3 ccGrad = sign( ccDet ) * ( dFdx( ccReliefHeight ) * ccRx + dFdy( ccReliefHeight ) * ccRy );
+  if ( abs( ccDet ) > 1e-12 ) {
+    normal = normalize( normal - ccGrad / abs( ccDet ) );
+  }`);
     f = patchChunk(f, 'normal_fragment_maps', 'mapN.xy *= normalScale;', `mapN.xy *= normalScale;
   {
     float ccFade = 1.0 - smoothstep( 0.35, 1.2, length( vViewPosition ) );
@@ -157,7 +187,7 @@ float ccThinV = 0.0;`);
   }`);
     sh.fragmentShader = f;
   };
-  m.customProgramCacheKey = () => 'ccSkin2';
+  m.customProgramCacheKey = () => 'ccSkin3';
   m.needsUpdate = true;
   return m;
 }
@@ -177,6 +207,11 @@ export const hairUniforms = {
   ccCapR: { value: [0, 0, 0] },
 };
 export function setAppearance(values) {
+  const chestGate = breastGate(values);
+  skinUniforms.ccChestGate.value = chestGate;
+  skinUniforms.ccAreolaPigment.value = 2 * (values.areolaPigmentation - 0.5);
+  skinUniforms.ccAreolaCoverage.value = values.areolaCoverage;
+  skinUniforms.ccNippleRelief.value = values.nippleRelief * chestGate * 0.0015;
   skinUniforms.ccPoreStrength.value = values.skinPores;
   skinUniforms.ccRoughness.value = values.skinRoughness;
   skinUniforms.ccSSS.value = values.skinScattering;

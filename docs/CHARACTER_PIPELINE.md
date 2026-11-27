@@ -7,6 +7,12 @@ and spring motion on long hair cards. The settings JSON and portable GLB metadat
 carry those choices. A GLB by itself uses ordinary PBR materials, so web shader
 effects and animation-driven hair motion depend on the host.
 
+In **Chest**, the female body has additional controls for areola pigmentation,
+pigment coverage and nipple surface relief. These settings use the existing
+skin-region mask and follow the age and sex gate used by the chest controls.
+The relief changes shading without displacing the mesh. JSON presets and GLB
+metadata preserve the values. The local skin effects require the web shader.
+
 ## Use the creator from a web host
 
 Use `python tools/serve_offline.py` to serve the editor and bundled assets
