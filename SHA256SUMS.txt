@@ -1,1 +1,1 @@
-bc0a4e56e2500bba42c65dc08bd80c44dbb0b9b20d2e7267689d071caa8c0701  CharacterCreator-0.1.0-portable.exe
+1a29a23f835dbbacba2cb88e45400fa72d7becbfb104c8c2801950918e3b68ad  CharacterCreator-0.1.0-portable.exe
