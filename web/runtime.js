@@ -4,6 +4,38 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { Human, browserLoader, DEFAULT_MACROS, normalizeRace } from './mh/human.js';
 import { DETAIL_SLIDERS, detailWeights } from './mh/details.js';
+import { pickLang } from './i18n.js';
+
+// UI texts (pt / da / en, web/i18n.js pickLang). Detail sliders: Danish labels come from web/character.js.
+const TXT = {
+  pt: { macro: 'Macros do MakeHuman', gender: 'Sexo (F=0 · M=1)', age: 'Idade (bebê 0 · jovem 0.5 · idoso 1)', muscle: 'Músculos',
+    weight: 'Peso', height: 'Altura', proportions: 'Proporções', face: 'Rosto', chest: 'Seios (corpo feminino)', cupsize: 'Tamanho',
+    firmness: 'Firmeza', race: 'Etnia (normalizada)', asian: 'asiática', caucasian: 'caucasiana', african: 'africana', skin: 'Pele',
+    reset: 'Redefinir', noData: 'Não foi possível carregar os dados', run: 'Rode', missing: 'formas faltando em web/data (rode tools/export_data.py de novo)',
+    error: 'Erro', height_m: 'altura', targets: 'formas',
+    noseWidth: 'Largura do nariz', noseLength: 'Comprimento do nariz', noseHeight: 'Altura do nariz', jawWidth: 'Largura da mandíbula',
+    chin: 'Queixo', cheekbones: 'Maçãs do rosto', eyeSize: 'Tamanho dos olhos', eyeSpacing: 'Distância entre os olhos',
+    eyeTilt: 'Inclinação dos olhos', lips: 'Lábios', mouthWidth: 'Largura da boca', earSize: 'Tamanho das orelhas',
+    forehead: 'Altura da testa', breastHeight: 'Posição (baixa ↔ alta)', breastSpacing: 'Afastamento', breastProjection: 'Forma (redonda ↔ pontuda)' },
+  da: { macro: 'MakeHuman makro', gender: 'Køn (K=0 · M=1)', age: 'Alder (baby 0 · ung 0.5 · gammel 1)', muscle: 'Muskler',
+    weight: 'Vægt', height: 'Højde', proportions: 'Proportioner', face: 'Ansigt', chest: 'Bryst (kvindelig krop)', cupsize: 'Størrelse',
+    firmness: 'Fasthed', race: 'Race (normaliseres)', asian: 'asian', caucasian: 'caucasian', african: 'african', skin: 'Hud',
+    reset: 'Nulstil', noData: 'Kunne ikke indlæse data', run: 'Kør', missing: 'targets mangler i web/data (kør tools/export_data.py igen)',
+    error: 'Fejl', height_m: 'højde', targets: 'targets' },
+  en: { macro: 'MakeHuman macros', gender: 'Sex (F=0 · M=1)', age: 'Age (baby 0 · young 0.5 · old 1)', muscle: 'Muscle',
+    weight: 'Weight', height: 'Height', proportions: 'Proportions', face: 'Face', chest: 'Chest (female body)', cupsize: 'Size',
+    firmness: 'Firmness', race: 'Ethnicity (normalised)', asian: 'asian', caucasian: 'caucasian', african: 'african', skin: 'Skin',
+    reset: 'Reset', noData: 'Could not load the data', run: 'Run', missing: 'targets missing in web/data (run tools/export_data.py again)',
+    error: 'Error', height_m: 'height', targets: 'targets',
+    noseWidth: 'Nose width', noseLength: 'Nose length', noseHeight: 'Nose height', jawWidth: 'Jaw width', chin: 'Chin',
+    cheekbones: 'Cheekbones', eyeSize: 'Eye size', eyeSpacing: 'Eye spacing', eyeTilt: 'Eye tilt', lips: 'Lips',
+    mouthWidth: 'Mouth width', earSize: 'Ear size', forehead: 'Forehead height', breastHeight: 'Position (low ↔ high)',
+    breastSpacing: 'Spacing', breastProjection: 'Shape (round ↔ pointed)' },
+};
+const lang = pickLang(new URLSearchParams(location.search));
+document.documentElement.lang = lang;
+const T = k => TXT[lang][k] ?? TXT.en[k] ?? k;
+const sliderLabel = s => TXT[lang][s.id] ?? (lang === 'da' ? s.label : TXT.en[s.id]) ?? s.label;
 
 const info = document.getElementById('info');
 const shot = new URLSearchParams(location.search).has('shot');   // screenshots need the drawing buffer kept
@@ -24,7 +56,7 @@ try {
   human = await new Human(browserLoader('./data/')).init();
 } catch (e) {
   console.error(e);
-  info.textContent = `Kunne ikke indlæse data (${e.message}). Kør: python tools/export_data.py`;
+  info.textContent = `${T('noData')} (${e.message}). ${T('run')}: python tools/export_data.py`;
   window.__error = e.message;
   throw e;
 }
@@ -58,15 +90,15 @@ function refresh() {
         geo.computeBoundingBox(); geo.computeBoundingSphere();
         mesh.position.y = -geo.boundingBox.min.y;   // keep feet on the ground
         const ms = performance.now() - t0, hgt = geo.boundingBox.max.y - geo.boundingBox.min.y;
-        const miss = human.lastMissing.length ? ` · ${human.lastMissing.length} targets mangler i web/data (kør tools/export_data.py igen)` : '';
-        info.textContent = `${human.lastStack.length} targets, ${ms.toFixed(0)} ms, height ${hgt.toFixed(2)} m${miss}`;
+        const miss = human.lastMissing.length ? ` · ${human.lastMissing.length} ${T('missing')}` : '';
+        info.textContent = `${human.lastStack.length} ${T('targets')}, ${ms.toFixed(0)} ms, ${T('height_m')} ${hgt.toFixed(2)} m${miss}`;
         const missKey = human.lastMissing.join();
         if (miss && missKey !== lastMissKey) console.warn('[runtime] targets missing from web/data:', human.lastMissing);
         lastMissKey = missKey;
       }
     } catch (e) {
       console.error(e);
-      info.textContent = `Fejl: ${e.message}`;   // the UI stays usable; the next change retries
+      info.textContent = `${T('error')}: ${e.message}`;   // the UI stays usable; the next change retries
     } finally { running = null; }
   })();
   return running;
@@ -84,22 +116,22 @@ function slider(label, get, set, min = 0) {
 }
 const sync = () => { for (const s of sliders) { s.r.value = s.get(); s.show(); } };
 const h = t => { const e = document.createElement('h3'); e.textContent = t; ui.append(e); };
-h('MakeHuman makro');
-for (const [k, lab] of [['gender', 'Køn (K=0 · M=1)'], ['age', 'Alder (baby 0 · ung 0.5 · gammel 1)'], ['muscle', 'Muskler'], ['weight', 'Vægt'], ['height', 'Højde'], ['proportions', 'Proportioner']])
-  slider(lab, () => m[k], v => m[k] = v);
-h('Ansigt');
-for (const s of DETAIL_SLIDERS.filter(x => x.group === 'face')) slider(s.label, () => d[s.id], v => d[s.id] = v, -1);
+h(T('macro'));
+for (const k of ['gender', 'age', 'muscle', 'weight', 'height', 'proportions'])
+  slider(T(k), () => m[k], v => m[k] = v);
+h(T('face'));
+for (const s of DETAIL_SLIDERS.filter(x => x.group === 'face')) slider(sliderLabel(s), () => d[s.id], v => d[s.id] = v, -1);
 // MPFB applies the breast macros to any body with a female part and does not scale them by gender
-h('Bryst (kvindelig krop)');
-slider('Størrelse', () => m.cupsize, v => m.cupsize = v);
-slider('Fasthed', () => m.firmness, v => m.firmness = v);
-for (const s of DETAIL_SLIDERS.filter(x => x.group === 'breast')) slider(s.label, () => d[s.id], v => d[s.id] = v, -1);
-h('Race (normaliseres)');
-for (const k of ['asian', 'caucasian', 'african']) slider(k, () => m.race[k], v => m.race[k] = v);
-h('Hud');
+h(T('chest'));
+slider(T('cupsize'), () => m.cupsize, v => m.cupsize = v);
+slider(T('firmness'), () => m.firmness, v => m.firmness = v);
+for (const s of DETAIL_SLIDERS.filter(x => x.group === 'breast')) slider(sliderLabel(s), () => d[s.id], v => d[s.id] = v, -1);
+h(T('race'));
+for (const k of ['asian', 'caucasian', 'african']) slider(T(k), () => m.race[k], v => m.race[k] = v);
+h(T('skin'));
 const c = Object.assign(document.createElement('input'), { type: 'color', value: '#c99a80' });
 c.oninput = () => mat.color.set(c.value); ui.append(c);
-const reset = Object.assign(document.createElement('button'), { textContent: 'Nulstil' });
+const reset = Object.assign(document.createElement('button'), { textContent: T('reset') });
 reset.onclick = () => { Object.assign(m, structuredClone(START)); for (const k in d) d[k] = 0; sync(); refresh(); };
 ui.append(reset);
 

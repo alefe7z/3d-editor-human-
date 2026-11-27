@@ -1,6 +1,6 @@
 <!doctype html>
 <!-- SPDX-License-Identifier: MIT -->
-<html lang="da"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="pt"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>CharacterCreator</title><link rel="icon" href="data:,">
 <style>
  html,body{margin:0;height:100%;background:#1b1d22;color:#ddd;font:13px system-ui,sans-serif}
@@ -33,9 +33,12 @@
 <script>
  // Shown if main.js (or three.js from the CDN) cannot be loaded; main.js sets window.__booted.
  function __fatal(msg){var s=document.getElementById('status');if(!s)return;s.className='error';s.textContent=msg;}
- var __en=/[?&]lang=en\b/.test(location.search);
- var __bootMsg=__en?'Could not load the 3D engine (three.js from cdn.jsdelivr.net). Check your network connection and reload.'
-                  :'Kunne ikke indlæse 3D-motoren (three.js fra cdn.jsdelivr.net). Tjek netforbindelsen og genindlæs siden.';
+ // same choice as web/i18n.js pickLang: ?lang=pt|da|en, else the system language, else pt
+ var __m=/[?&]lang=(pt|da|en)\b/.exec(location.search), __l=__m?__m[1]:'pt';
+ if(!__m){var __ls=navigator.languages||[navigator.language];for(var __i=0;__i<__ls.length;__i++){var __b=String(__ls[__i]||'').toLowerCase().split(/[-_]/)[0];if(__b==='pt'||__b==='da'||__b==='en'){__l=__b;break;}}}
+ var __bootMsg={en:'Could not load the 3D engine (three.js from cdn.jsdelivr.net). Check your network connection and reload.',
+   da:'Kunne ikke indlæse 3D-motoren (three.js fra cdn.jsdelivr.net). Tjek netforbindelsen og genindlæs siden.',
+   pt:'Não foi possível carregar o motor 3D (three.js de cdn.jsdelivr.net). Verifique a conexão com a internet e recarregue.'}[__l];
  setTimeout(function(){if(!window.__booted)__fatal(__bootMsg);},15000);
 </script>
 </head><body><div id="status"></div><div id="ui"></div>

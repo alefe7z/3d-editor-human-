@@ -18,12 +18,41 @@ import { applyHairPasses, setHairLook, DEFAULT_HAIR_LOOK, HAIR_COLOR_STYLES, hai
 import { createClothing } from './clothing.js';
 import { createClothRuntime } from './cloth/runtime.js';
 import { createExporter } from './export/exporter.js';
+import { pickLang, catalogLabel, presetLabel } from './i18n.js';
 
 window.__booted = true;
 const params = new URLSearchParams(location.search);
 
-// ---- i18n (da default, en via ?lang=en) ----
+// ---- i18n (pt / da / en; web/i18n.js pickLang chooses) ----
 const I18N = {
+  pt: {
+    sex: 'Sexo', sexMale: 'Masculino', sexFemale: 'Feminino',
+    secBreast: 'Seios', breastSize: 'Tamanho', breastFirmness: 'Firmeza (sustentação)', breastHeight: 'Posição (baixa ↔ alta)',
+    breastSpacing: 'Afastamento', breastProjection: 'Forma (redonda ↔ pontuda)', breastPhysics: 'Física dos seios',
+    age: 'Idade (criança ↔ idoso)', height: 'Altura', weight: 'Peso',
+    muscle: 'Músculos', proportions: 'Proporções', skin: 'Cor da pele', reset: 'Redefinir',
+    hair: 'Penteado', hairNone: 'Careca', hairColor: 'Cor do cabelo', browColor: 'Cor das sobrancelhas', eyeColor: 'Cor dos olhos',
+    loading: 'Carregando modelo…', glbError: 'Não foi possível carregar o modelo (base_body.glb).',
+    hairError: 'Não foi possível carregar o penteado', hairLoading: 'Carregando cabelo…',
+    noBody: 'O modelo não contém malha com esqueleto.', missingMorphs: 'Morphs ausentes:',
+    anim: 'Animação', animNone: 'Nenhuma', clip_idle: 'Parado', clip_walk: 'Andar', clip_run: 'Correr',
+    clip_idle_look: 'Parado: olhar em volta', clip_idle_breathe: 'Parado: respirar fundo', clip_idle_fidget: 'Parado: inquieto',
+    clip_walk_back: 'Andar de costas', clip_strafe_left: 'Passo lateral à esquerda', clip_strafe_right: 'Passo lateral à direita',
+    clip_jump: 'Pular', clip_fall: 'Cair (no ar)', clip_land: 'Aterrissar', jumpNow: 'Pular!', idleVary: 'Variação parado',
+    play: 'Reproduzir', pause: 'Pausar', speed: 'Velocidade', animError: 'Animação desativada:',
+    secBody: 'Corpo', secFace: 'Rosto', secEyes: 'Olhos', secLooks: 'Cores e cabelo', secAnim: 'Animação',
+    noseWidth: 'Largura do nariz', noseLength: 'Comprimento do nariz', noseHeight: 'Altura do nariz', jawWidth: 'Largura da mandíbula',
+    chin: 'Queixo', cheekbones: 'Maçãs do rosto', eyeSize: 'Tamanho dos olhos', eyeSpacing: 'Distância entre os olhos', eyeTilt: 'Inclinação dos olhos',
+    lips: 'Lábios', mouthWidth: 'Largura da boca', earSize: 'Tamanho das orelhas', forehead: 'Altura da testa',
+    blink: 'Piscar', look: 'Olhar', lookOff: 'Para a frente', lookCamera: 'Seguir a câmera', lookMouse: 'Seguir o mouse',
+    hairCollide: 'Cabelo desvia dos ombros',
+    hairPreset: 'Cor pronta do cabelo', hairPresetNone: '(cor própria)', hairShine: 'Brilho ao longo dos fios', hairSoft: 'Pontas macias',
+    hairDensity: 'Densidade (fios finos ↔ grossos)', hairStrandVar: 'Variação entre fios', hairRootColor: 'Cor da raiz',
+    hairRootMix: 'Cor da raiz (intensidade)',
+    secClothes: 'Roupas', clothNone: 'Nenhuma', clothPrimary: 'Cor', clothSecondary: 'Detalhe',
+    clothLoading: 'Carregando roupas…', clothError: 'Não foi possível carregar as roupas',
+    cloth: 'Física das roupas', wind: 'Vento',
+  },
   da: {
     sex: 'Køn', sexMale: 'Mand', sexFemale: 'Kvinde',
     secBreast: 'Bryster', breastSize: 'Størrelse', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
@@ -81,9 +110,9 @@ const I18N = {
     cloth: 'Cloth physics', wind: 'Wind',
   },
 };
-const lang = I18N[params.get('lang')] ? params.get('lang') : 'da';
+const lang = pickLang(params);                  // web/i18n.js: ?lang=pt|da|en, else the system language, else pt
 document.documentElement.lang = lang;
-const t = k => I18N[lang][k] ?? I18N.da[k] ?? k;
+const t = k => I18N[lang][k] ?? I18N.en[k] ?? I18N.da[k] ?? k;
 
 const statusEl = document.getElementById('status');
 function setStatus(msg, isError = false) {
@@ -377,7 +406,7 @@ function setHair(id) {
 async function initHair() {
   hairManifest = await hairReady;
   if (!hairManifest?.styles?.length) { hairUI.forEach(el => { el.hidden = true; }); return; }
-  for (const s of hairManifest.styles) hairSel.append(new Option(s.label?.[lang] ?? s.label?.da ?? s.id, s.id));
+  for (const s of hairManifest.styles) hairSel.append(new Option(catalogLabel(s.label, lang, `hair:${s.id}`, s.id), s.id));
   const want = params.has('hair') ? params.get('hair') : hairManifest.default;
   await setHair(want && want !== 'none' ? want : null);
 }
@@ -528,7 +557,7 @@ if (HAIR_PASSES) {
   const ps = document.createElement('select');
   ps.setAttribute('aria-label', t('hairPreset'));
   ps.append(new Option(t('hairPresetNone'), ''));
-  for (const name of Object.keys(HAIR_COLOR_STYLES)) ps.append(new Option(name, name));
+  for (const name of Object.keys(HAIR_COLOR_STYLES)) ps.append(new Option(presetLabel(name, lang), name));
   ps.onchange = () => { if (ps.value) window.__set('hairPreset', ps.value); };
   inputs.hairPreset = { input: ps, show: x => { ps.value = x ?? ''; } };
   secLooks.append(pl, ps);

@@ -9,6 +9,7 @@
 // every worn item it conflicts with (either direction). Higher layer = outside.
 import * as THREE from 'three';
 import { characterMeshes, bindToSkeleton } from './character.js';
+import { catalogLabel } from './i18n.js';
 
 import { wearRules, resolveOutfit, hiddenZoneMask, coveringZoneMask, filterIndex, collidesAsLayer, outfitWithUnderwear,
   swapUnderwearForSex, defaultUnderwear, isUnderwear, layerHiddenZoneMask } from './clothing_rules.js';
@@ -216,13 +217,13 @@ export function createClothing(opts) {
     for (const s of catalog.slots) {
       const items = catalog.items.filter(i => i.slot === s);
       if (!items.length) continue;
-      const label = catalog.slotLabels?.[s]?.[lang] ?? catalog.slotLabels?.[s]?.da ?? s;
+      const label = catalogLabel(catalog.slotLabels?.[s], lang, `slot:${s}`, s);
       const l = document.createElement('label'); l.textContent = label;
       const sel = document.createElement('select');
       sel.setAttribute('aria-label', label);
       sel.dataset.slot = s;
       sel.append(new Option(t('clothNone'), ''));
-      for (const i of items) sel.append(new Option(i.label?.[lang] ?? i.label?.da ?? i.id, i.id));
+      for (const i of items) sel.append(new Option(catalogLabel(i.label, lang, `item:${i.id}`, i.id), i.id));
       sel.onchange = () => (sel.value ? wear(sel.value) : takeOff(s));
       const row = document.createElement('div'); row.className = 'colors';
       const mk = which => {

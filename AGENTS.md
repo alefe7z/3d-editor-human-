@@ -102,6 +102,11 @@ tool-specific file. Status and numbers go in `docs/STATUS.md`.
   target stack), `web/mh/details.js` (MIT: face / chest detail sliders).
   Data: `python tools/export_data.py [MPFB_DATA_DIR] [OUT]` -> `web/data/`
   (git-ignored). Doc: `docs/RUNTIME_PROTOTYPE.md`.
+- UI language (2026-11-27): `web/i18n.js` picks pt / da / en (`?lang=`, else the
+  system language, else pt); dictionaries in `web/main.js`, `web/export/exporter.js`,
+  `web/runtime.js`; Portuguese clothing / hair / preset names in `web/i18n.js`
+  (the Blender-built JSON keeps da / en). `tests/i18n.test.mjs` fails when a
+  Portuguese key or catalog label is missing: add it when you add a text.
 - Desktop app (2026-11-27): `desktop/` (Electron, MIT) serves `web/` + `output/`
   through `app://charactercreator/` and swaps the three.js CDN for its own copy
   (offline). `cd desktop && npm install && npm start`; installer: `npm run dist`

@@ -23,6 +23,19 @@ import { postProcessGlb } from './glbpack.js';
 
 const SLIDER_IDS = SLIDERS.map(s => s.id);
 const I18N = {
+  pt: {
+    secExport: 'Exportar', exShape: 'Forma', exBaked: 'Fixa (sliders atuais, arquivo pequeno)', exMorphs: 'Com morph targets (shape keys)',
+    exPose: 'Pose', exRest: 'Pose de repouso', exCurrent: 'Quadro atual da animação',
+    exAnim: 'Animações', exFps: 'Quadros por segundo (animação)', exAnimNone: 'Nenhuma', exAnimAll: 'Todos os clipes (ajustados a este corpo)',
+    exTex: 'Tamanho das texturas', exTexOrig: 'Original', exClothing: 'Roupas', exHair: 'Cabelo', exEyes: 'Olhos', exTeeth: 'Dentes',
+    exTongue: 'Língua', exBrows: 'Sobrancelhas', exLashes: 'Cílios', exRemoveHidden: 'Remover pele escondida sob as roupas',
+    exMerge: 'Juntar em uma única malha', exButton: 'Exportar glTF (.glb)',
+    exNote: 'O shader SSS da pele não é exportado (PBR simples). Roupas e cabelo não são simulados; os dados das roupas vão como extras.',
+    exSaveJson: 'Salvar configurações (JSON)', exLoadJson: 'Carregar configurações…', exShare: 'Copiar link de compartilhamento',
+    exBusy: 'Exportando…', exDone: 'Exportado', exError: 'Falha na exportação:', exLoaded: 'Configurações carregadas',
+    exLoadError: 'Não foi possível carregar as configurações:', exCopied: 'Link copiado', exLink: 'Link de compartilhamento',
+    stPrepare: 'Preparando a geometria…', stMaterials: 'Materiais e cores…', stAnim: 'Animações…', stWrite: 'Gravando glTF…', stPack: 'Empacotando…',
+  },
   da: {
     secExport: 'Eksport', exShape: 'Form', exBaked: 'Bagt (aktuelle skydere, lille fil)', exMorphs: 'Med morph targets (shape keys)',
     exPose: 'Positur', exRest: 'Hvilestilling', exCurrent: 'Aktuelt animationsbillede',
@@ -82,8 +95,8 @@ function classify(m, body) {
  * the full body index for the 'keep hidden skin' option).
  */
 export function createExporter(deps) {
-  const lang = I18N[deps.lang] ? deps.lang : 'da';
-  const t = k => I18N[lang][k] ?? I18N.da[k] ?? k;
+  const lang = I18N[deps.lang] ? deps.lang : 'pt';
+  const t = k => I18N[lang][k] ?? I18N.en[k] ?? I18N.da[k] ?? k;
   const body0 = deps.getBody();
   const fullBodyIndex = body0?.geometry?.index ? body0.geometry.index.array.slice() : null;
   let sceneRoot = body0;
