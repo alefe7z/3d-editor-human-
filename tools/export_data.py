@@ -1,5 +1,5 @@
 # SPDX-License-Identifier: MIT
-"""Pack MPFB/MakeHuman CC0 data (base mesh + macro targets) into compact binaries for the web runtime.
+"""Pack MPFB/MakeHuman CC0 data (base mesh + macro, breast and face/chest detail targets) into compact binaries for the web runtime.
 Usage: python tools/export_data.py [MPFB_DIR] [OUT_DIR]
 Output (web/data): mesh.bin, meta.json, macro.json, targets/<name>.bin
  targets/*.bin = uint16 count N, then N x uint16 vertex index, then N x 3 x int16 deltas (units of meta.deltaStep decimetres).
@@ -41,11 +41,15 @@ with open(os.path.join(OUT, "mesh.bin"), "wb") as fh:
     fh.write(np.array(orig, np.uint32).tobytes()); fh.write(np.array(idx, np.uint32).tobytes())
 # --- macro targets ---
 shutil.copy(os.path.join(MPFB, "targets", "macrodetails", "macro.json"), os.path.join(OUT, "macro.json"))
+# macro targets + breast macros (breast/female-*) + the detail-target folders the face / chest sliders use
+# (web/mh/details.js). Whole folders are packed (small, sparse files), so new sliders need no exporter change.
+FOLDERS = ["macrodetails", "macrodetails/height", "macrodetails/proportions",
+           "breast", "nose", "chin", "mouth", "forehead", "cheek", "eyes", "ears"]
 loaded = []
-for sub in ("", "height", "proportions"):
-    for path in sorted(glob.glob(os.path.join(MPFB, "targets", "macrodetails", sub, "*.target.gz"))):
+for sub in FOLDERS:
+    for path in sorted(glob.glob(os.path.join(MPFB, "targets", *sub.split("/"), "*.target.gz"))):
         base = os.path.basename(path)[:-len(".target.gz")]
-        name = "macrodetails/" + (sub + "/" if sub else "") + base
+        name = sub + "/" + base
         idxs, dl = [], []
         for line in gzip.open(path, "rt"):
             p = line.split()

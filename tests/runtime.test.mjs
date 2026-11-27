@@ -4,6 +4,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { Human, targetStack, normalizeRace, parseTarget, DEFAULT_MACROS } from '../web/mh/human.js';
+import { DETAIL_SLIDERS, DETAIL_TARGET_FILES, detailWeights, expandSided } from '../web/mh/details.js';
+import { FACE_SLIDERS, BREAST_SLIDERS } from '../web/character.js';
 
 // macro.json part bounds (CC0 MakeHuman data via MPFB), only the fields targetStack reads
 const P = (lowest, highest, low, high) => ({ lowest, highest, low, high });
@@ -14,6 +16,8 @@ const MACRO = { macrotargets: {
   weight: { parts: [P(-0.01, 0.49998, 'minweight', 'averageweight'), P(0.49999, 1.01, 'averageweight', 'maxweight')] },
   proportions: { parts: [P(-0.01, 0.4999, 'uncommonproportions', ''), P(0.5, 1.01, '', 'idealproportions')] },
   height: { parts: [P(-0.01, 0.49, 'minheight', ''), P(0.51, 1.01, '', 'maxheight')] },
+  cupsize: { parts: [P(-0.01, 0.49998, 'mincup', 'averagecup'), P(0.49999, 1.01, 'averagecup', 'maxcup')] },
+  firmness: { parts: [P(-0.01, 0.4998, 'minfirmness', 'averagefirmness'), P(0.4999, 1.01, 'averagefirmness', 'maxfirmness')] },
 } };
 
 const near = (a, b, e = 2e-4) => Math.abs(a - b) <= e;
@@ -158,4 +162,57 @@ test('Human.target: a failed fetch is not cached; the next apply retries it', as
   assert.equal(l.log.filter(p => p === miss).length, 2);
   // and a later failure does not break the queue for good
   assert.ok(await h.apply({ gender: 0.2 }));
+});
+
+// ---- breast macros (cupsize / firmness) and detail sliders ----
+const breastOf = s => s.filter(([n]) => n.startsWith('breast/'));
+
+test('targetStack breast: neutral cup + firmness (the default) adds no breast target', () => {
+  assert.equal(breastOf(targetStack(MACRO, {})).length, 0);
+  assert.equal(breastOf(targetStack(MACRO, { gender: 0 })).length, 0);
+});
+
+test('targetStack breast: female targets only, never averagecup-averagefirmness or baby', () => {
+  for (const v of [{ gender: 0, cupsize: 1 }, { gender: 0, cupsize: 0, firmness: 1, age: 0.9 }, { age: 0, cupsize: 1 }, { gender: 0.3, cupsize: 0.7, firmness: 0.2 }]) {
+    const b = breastOf(targetStack(MACRO, v));
+    assert.ok(b.length > 0, JSON.stringify(v));
+    for (const [n] of b) {
+      assert.match(n, /^breast\/female-(child|young|old)-(min|average|max)muscle-(min|average|max)weight-(min|average|max)cup-(min|average|max)firmness$/);
+      assert.ok(!n.includes('averagecup-averagefirmness'), n);
+    }
+  }
+});
+
+test('targetStack breast: like MPFB, the weight is not scaled by gender (there are no male targets)', () => {
+  const w = s => asMap(breastOf(s))['breast/female-young-averagemuscle-averageweight-maxcup-averagefirmness'];
+  const female = w(targetStack(MACRO, { gender: 0, cupsize: 1 })), mid = w(targetStack(MACRO, { gender: 0.5, cupsize: 1 }));
+  assert.ok(female > 0.9 && near(female, mid, 1e-9), `${female} vs ${mid}`);
+  // a male body still has a tiny female component (outer bound 1.01), so MPFB gives it the full breast target too
+  assert.ok(near(w(targetStack(MACRO, { gender: 1, cupsize: 1 })), female, 1e-9));
+});
+
+test('detail sliders: same ids, sides and scales as the baked viewer (web/character.js)', () => {
+  const baked = [...FACE_SLIDERS, ...BREAST_SLIDERS].filter(s => /^(face|bdet)_/.test(s.neg)).map(s => s.id);
+  assert.deepEqual(DETAIL_SLIDERS.map(s => s.id), baked);
+  assert.equal(DETAIL_SLIDERS.length, 16);
+  assert.deepEqual(expandSided('L/eyes/eye-scale-incr'), ['eyes/l-eye-scale-incr', 'eyes/r-eye-scale-incr']);
+  assert.deepEqual(detailWeights({}), {});
+  assert.deepEqual(detailWeights({ noseWidth: -0.5 }), { 'nose/nose-scale-horiz-decr': 0.5 });
+  assert.deepEqual(detailWeights({ eyeSize: 1 }), { 'eyes/l-eye-scale-incr': 0.7, 'eyes/r-eye-scale-incr': 0.7 });   // scale 0.7
+  assert.deepEqual(detailWeights({ lips: 2 }), { 'mouth/mouth-upperlip-volume-incr': 1, 'mouth/mouth-lowerlip-volume-incr': 1 });   // clamped
+  assert.deepEqual(detailWeights({ breastHeight: -1 }), { 'breast/breast-trans-down': 1 });
+  assert.ok(DETAIL_TARGET_FILES.length === 44 && DETAIL_TARGET_FILES.every(f => !f.startsWith('L/')));
+});
+
+test('Human.apply: detail targets are added to the sum; targets missing from the data are skipped and reported', async () => {
+  const name = 'nose/nose-trans-up';
+  const d = fullData({ [name]: { idx: [2], d: [0, 2000, 0] } });
+  d.json['meta.json'].targets = Object.keys(d.files).filter(f => f.startsWith('targets/'))
+    .map(f => f.slice(8, -4).replace(/__/g, '/'));
+  const h = await new Human(loader(d)).init();
+  const p = await h.apply({}, { [name]: 0.5, 'mouth/not-packed': 1, 'chin/zero': 0 });
+  assert.ok(near(p[7], 0.1 + 0.1 * 0.5 * 2000 * 0.001, 1e-6), `y of vertex 2: ${p[7]}`);
+  assert.deepEqual(h.lastMissing, ['mouth/not-packed']);
+  assert.ok(h.lastStack.some(([n, w]) => n === name && w === 0.5));
+  assert.ok(!h.lastStack.some(([n]) => n === 'chin/zero'));
 });
