@@ -28,7 +28,9 @@ soft contour separately. These controls deform the rear of the pelvis and
 the garments around it in the same rest space. The editor saves the slider
 values in presets and exports the static shape in a GLB. Motion intensity
 controls a damped response to animated pelvis motion. The walking preview
-uses the existing walk clip. The secondary motion runs in the editor. A GLB
+uses the existing walk clip. **Front hip motion intensity** is independent
+and affects the lower abdomen and the front of fitted garments. Use
+**Front view** to inspect it while walking. The secondary motion runs in the editor. A GLB
 can retain its morph target for a runtime driver.
 
 ## Use the creator from a web host

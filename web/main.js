@@ -15,7 +15,7 @@ import { createIdleVariation } from './animation/idlevary.js';
 import { createEyeLife, applyMorphWeights } from './eyelife.js';
 import { APPEARANCE, CHEST_APPEARANCE, normalizeAppearance } from './appearance.js';
 import { upgradeSkin, upgradeHair, upgradeCornea, setSkinParams, setAppearance, updateHairMotion, hairUniforms, createHairCollider } from './materials.js';
-import { installGluteMorphs, GLUTE_MOTION } from './glutes.js';
+import { installPelvisMorphs, GLUTE_MOTION, FRONT_HIP_MOTION } from './glutes.js';
 import { createClothing } from './clothing.js';
 import { createClothRuntime } from './cloth/runtime.js';
 import { createExporter } from './export/exporter.js';
@@ -32,7 +32,7 @@ const I18N = {
     sizePreset: 'Størrelsesvalg', shapePreset: 'Formvalg', choosePreset: 'Vælg en forudindstilling',
     small: 'Lille', medium: 'Mellem', large: 'Stor', full: 'Fyldig', rounded: 'Rund', sloped: 'Dråbeformet', projected: 'Fremspringende', wideSet: 'Bred afstand',
     inspectChest: 'Skjul tøj over brystet', chestFront: 'Forfra', chestSide: 'Fra siden', resetChest: 'Nulstil brystindstillinger',
-    secGlutes: 'Balder og hofter', gluteVolume: 'Volumen', gluteProjection: 'Fremspring', gluteWidth: 'Bredde', gluteRoundness: 'Rundhed', gluteLift: 'Løft', gluteSoftness: 'Blød kontur', gluteMotion: 'Bevægelsesstyrke', glutePreview: 'Vis bevægelse i gang', gluteBack: 'Bagfra', gluteSide: 'Fra siden',
+    secGlutes: 'Balder og hofter', gluteVolume: 'Volumen', gluteProjection: 'Fremspring', gluteWidth: 'Bredde', gluteRoundness: 'Rundhed', gluteLift: 'Løft', gluteSoftness: 'Blød kontur', gluteMotion: 'Bevægelse bagpå', frontHipMotion: 'Bevægelse foran', hipFront: 'Forfra', glutePreview: 'Vis bevægelse i gang', gluteBack: 'Bagfra', gluteSide: 'Fra siden',
     secBreast: 'Bryster', breastSize: 'Størrelse', breastSizeExact: 'Indtast størrelse (også uden for skyderens område)', breastFirmness: 'Fasthed (løft)', breastHeight: 'Placering (lav ↔ høj)',
     breastSpacing: 'Afstand', breastProjection: 'Form (rund ↔ spids)', breastPhysics: 'Brystfysik', breastMotion: 'Bevægelsesstyrke', previewMotion: 'Forhåndsvis brystbevægelse',
     age: 'Alder (barn ↔ gammel)', height: 'Højde', weight: 'Vægt',
@@ -64,7 +64,7 @@ const I18N = {
     sizePreset: 'Size preset', shapePreset: 'Shape preset', choosePreset: 'Choose a preset',
     small: 'Small', medium: 'Medium', large: 'Large', full: 'Full volume', rounded: 'Rounded', sloped: 'Sloped', projected: 'Projected', wideSet: 'Wide-set',
     inspectChest: 'Hide chest garments for inspection', chestFront: 'Front view', chestSide: 'Side view', resetChest: 'Reset chest settings',
-    secGlutes: 'Glutes and hips', gluteVolume: 'Volume', gluteProjection: 'Projection', gluteWidth: 'Width', gluteRoundness: 'Roundness', gluteLift: 'Lift', gluteSoftness: 'Soft contour', gluteMotion: 'Motion intensity', glutePreview: 'Preview motion while walking', gluteBack: 'Back view', gluteSide: 'Side view',
+    secGlutes: 'Glutes and hips', gluteVolume: 'Volume', gluteProjection: 'Projection', gluteWidth: 'Width', gluteRoundness: 'Roundness', gluteLift: 'Lift', gluteSoftness: 'Soft contour', gluteMotion: 'Rear motion intensity', frontHipMotion: 'Front hip motion intensity', hipFront: 'Front view', glutePreview: 'Preview motion while walking', gluteBack: 'Back view', gluteSide: 'Side view',
     secBreast: 'Chest', breastSize: 'Size', breastSizeExact: 'Enter size (values outside the slider range allowed)', breastFirmness: 'Firmness (lift)', breastHeight: 'Position (low ↔ high)',
     breastSpacing: 'Spacing', breastProjection: 'Shape (round ↔ pointed)', breastPhysics: 'Breast physics', breastMotion: 'Motion intensity', previewMotion: 'Preview chest motion',
     age: 'Age (child ↔ old)', height: 'Height', weight: 'Weight',
@@ -261,7 +261,7 @@ const clothing = createClothing({
   getBody: () => body,
   addPart: m => {
     if (!parts.includes(m)) {
-      installGluteMorphs(m);
+      installPelvisMorphs(m);
       parts.push(m);
     }
   },
@@ -277,7 +277,7 @@ loader.load('./base_body.glb', async g => {
   if (!body) g.scene.traverse(o => { if (o.isSkinnedMesh && !body) body = o; });   // old GLBs
   if (!body) { setStatus(t('noBody'), true); return; }
   body.frustumCulled = false;
-  installGluteMorphs(body);
+  installPelvisMorphs(body);
   parts = [body];
   for (const m of meshes) attachPart(m);
   await upgradeMaterials(g.scene, g.parser);
@@ -415,6 +415,7 @@ function setView(name) {
     back: [[0, 1.1, -4], [0, 0.9, 0]],
     torso: [[0, head.y - 0.3, 1.5], [0, head.y - 0.38, 0]],
     torsoSide: [[1.5, head.y - 0.3, 0.05], [0, head.y - 0.38, 0.05]],
+    hipFront: [[hips.x, hips.y, hips.z + chestDistance], hips.toArray()],
     gluteBack: [[hips.x, hips.y, hips.z - chestDistance], hips.toArray()],
     gluteSide: [[hips.x + chestDistance, hips.y, hips.z], hips.toArray()],
     chest: [[chest.x, chest.y, chest.z + chestDistance], chest.toArray()],
@@ -583,7 +584,7 @@ function syncSexUI() {
 }
 const secGlutes = section('secGlutes', false);
 const gluteViews = Object.assign(document.createElement('div'), { className: 'view-buttons' });
-for (const id of ['gluteBack', 'gluteSide']) {
+for (const id of ['hipFront', 'gluteBack', 'gluteSide']) {
   const button = Object.assign(document.createElement('button'), { type: 'button', textContent: t(id) });
   button.onclick = () => setView(id);
   gluteViews.append(button);
@@ -591,10 +592,12 @@ for (const id of ['gluteBack', 'gluteSide']) {
 secGlutes.append(gluteViews);
 for (const setting of GLUTE_SLIDERS) slider(secGlutes, setting);
 slider(secGlutes, { id: 'gluteMotion', min: 0 });
+slider(secGlutes, { id: 'frontHipMotion', min: 0 });
 const glutePreviewButton = Object.assign(document.createElement('button'), { type: 'button', textContent: t('glutePreview') });
 glutePreviewButton.onclick = () => {
   if (!animator) return;
   gluteSpring.reset();
+  frontHipSpring.reset();
   animSel.value = 'walk';
   animSel.onchange();
   animator.resume();
@@ -618,7 +621,7 @@ checkbox(secEyes, 'blink');
 const secLooks = section('secLooks');
 const surface = section('secSurface', false);
 for (const id of Object.keys(APPEARANCE)) {
-  if (!Object.hasOwn(CHEST_APPEARANCE, id) && id !== 'gluteMotion') slider(surface, { id, min: 0 });
+  if (!Object.hasOwn(CHEST_APPEARANCE, id) && id !== 'gluteMotion' && id !== 'frontHipMotion') slider(surface, { id, min: 0 });
 }
 function colorInput(id, label) {
   const cl = document.createElement('label'); cl.textContent = label;
@@ -671,6 +674,7 @@ resetBtn.onclick = () => {
   update();
   breast.reset();
   gluteSpring.reset();
+  frontHipSpring.reset();
   if (hairManifest) setHair(hairManifest.default);
   clothing.reset();                            // default underwear of the sex + default garment colours
   cloth?.reset();
@@ -916,17 +920,21 @@ function buildClothUI() {
 // so the chest of a T-shirt / coat moves with the body. Garments support the chest a little (less motion).
 const breast = createBreastPhysics();
 const gluteSpring = createBreastPhysics({ frequencyHz: 2.8, dampingRatio: 0.62 });
+const frontHipSpring = createBreastPhysics({ frequencyHz: 3.0, dampingRatio: 0.72 });
 const glutePelvis = new THREE.Vector3();
 const restRotation = [0, 0, 0, 1];
-function updateGlutes(dt) {
+function updatePelvisMotion(dt) {
   const pelvis = body.skeleton.getBoneByName('pelvis');
   if (!pelvis) return;
   pelvis.getWorldPosition(glutePelvis);
-  const weights = gluteSpring.step(dt, glutePelvis.toArray(), restRotation, values.gluteMotion);
-  const amount = weights[DYN_MORPHS.up] - weights[DYN_MORPHS.down];
+  const position = glutePelvis.toArray();
+  const rear = gluteSpring.step(dt, position, restRotation, values.gluteMotion);
+  const front = frontHipSpring.step(dt, position, restRotation, values.frontHipMotion);
   for (const mesh of parts) {
-    const i = mesh.morphTargetDictionary?.[GLUTE_MOTION];
-    if (i !== undefined) mesh.morphTargetInfluences[i] = amount;
+    const rearIndex = mesh.morphTargetDictionary?.[GLUTE_MOTION];
+    const frontIndex = mesh.morphTargetDictionary?.[FRONT_HIP_MOTION];
+    if (rearIndex !== undefined) mesh.morphTargetInfluences[rearIndex] = rear[DYN_MORPHS.up] - rear[DYN_MORPHS.down];
+    if (frontIndex !== undefined) mesh.morphTargetInfluences[frontIndex] = front[DYN_MORPHS.up] - front[DYN_MORPHS.down];
   }
 }
 // by catalog id; every WORN item counts (worn, not drawn: the bra under a T-shirt still supports), combined as
@@ -994,7 +1002,7 @@ function tick(dt) {
     else updateEyes(dt);
     updateHairMotion(dt, body.skeleton.getBoneByName('head'), values.wind);
     if (values.hairCollide) for (const [m, c] of colliders) if (m.visible) c.update();
-    updateGlutes(dt);
+    updatePelvisMotion(dt);
     updateBreast(dt);                            // morph weights only: before the cloth skins the garments
     cloth?.update(dt, parts);
   }
