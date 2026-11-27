@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Clothing geometry checks shared by tests/clothing.test.mjs and the CLI report:
 //   node tools/cloth_check.mjs [output-dir]
 // Everything runs on the exported GLBs (what the viewer loads): morph targets, skin weights, joint rest TRS,

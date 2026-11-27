@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Cloth model builder (pure JS, no three.js): garment vertex arrays + ccCloth extras -> the particle system the
 // solver runs (docs/CLOTH_RUNTIME.md).
 //

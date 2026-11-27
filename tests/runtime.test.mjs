@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Runtime prototype (web/mh/human.js): macro target stack vs MPFB semantics, the packed-data loader and apply().
 // Synthetic data only, so it runs without web/data (git-ignored, made by tools/export_data.py).
 import test from 'node:test';

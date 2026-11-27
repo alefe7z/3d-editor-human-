@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 import puppeteer from 'puppeteer-core';
 import { existsSync } from 'node:fs';
 import { startServer } from './server.mjs';

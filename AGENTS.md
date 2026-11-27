@@ -55,9 +55,12 @@ machine-specific notes go in `AGENTS.local.md` (git-ignored).
 No push, fork, issue, comment, PR, release, tag push or deploy without the
 owner's explicit yes for that action. Agents make drafts, local branches and
 local tags only. MPFB contributions are written in a separate clone under
-`<scratch>`. This repo is GPL-3.0-or-later (LICENSE, LICENSE-NOTES.md); new
-source files start with `SPDX-License-Identifier: GPL-3.0-or-later`. MPFB code
-still stays out of the plugin/runtime (architecture rule, ROADMAP section 3).
+`<scratch>`. This repo is MIT (LICENSE, LICENSE-NOTES.md); new source files start
+with `SPDX-License-Identifier: MIT`. Files derived from or linking to GPL code
+(MPFB, Blender `bpy`) stay `GPL-3.0-or-later`; the list is in LICENSE-NOTES.md.
+Third-party code: any licence that allows it, keep its notice; never code with
+no licence. MPFB code still stays out of the viewer (architecture rule,
+ROADMAP section 3).
 
 ## Images
 

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Animator (web/animation/animator.js) on a fake three.js-like bone tree built from output/base_body.glb.
 // Run: node --test "tests/*.test.mjs"
 import test from 'node:test';

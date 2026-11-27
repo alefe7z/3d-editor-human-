@@ -4,6 +4,8 @@ Not legal advice. This file records what was compared, how, and what the project
 the time (2026-10-02, when the repos were MIT: no MPFB/GPL code in the MIT repos; "when in doubt: clean-room rewrite
 from data and documentation").
 
+**Update 2026-11-27:** the repo is MIT again, except the GPL files listed in LICENSE-NOTES.md ("Code licence"). `tools/check_no_gpl_paste.mjs` and its test were removed (owner decision); the commands below refer to the last commit that has them (`b495e4f`).
+
 **Update 2026-10-03:** all three repos are now GPL-3.0-or-later (LICENSE-NOTES.md). MPFB-derived code is no longer
 a licence problem, but it must credit MPFB and its copyright holders, and it stays out of the plugin/runtime as an
 architecture rule (ROADMAP section 3 point 4). The clean-room rewrite below is therefore no longer required for

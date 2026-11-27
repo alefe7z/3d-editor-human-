@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Runtime player for the procedural canonical clips (docs/ANIMATION_PLAN.md, section 4C).
 // Plain ES module, no three.js import: bones/root are used duck-typed, so it also runs in node.
 //

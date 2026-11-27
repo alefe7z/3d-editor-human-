@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: GPL-3.0-or-later
+# SPDX-License-Identifier: MIT
 """Pack MPFB/MakeHuman CC0 data (base mesh + macro targets) into compact binaries for the web runtime.
 Usage: python tools/export_data.py [MPFB_DIR] [OUT_DIR]
 Output (web/data): mesh.bin, meta.json, macro.json, targets/<name>.bin

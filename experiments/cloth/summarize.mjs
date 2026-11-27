@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Prints the markdown tables used in docs/CLOTH_SOLVER_REPORT.md from results/*.json.
 //   node summarize.mjs
 import fs from 'node:fs';

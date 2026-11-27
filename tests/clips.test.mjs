@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Procedural clips (web/animation/clips.js) against docs/ANIMATION_PLAN.md section 4B, for extreme
 // slider bodies built from the joints sidecar. Run: node --test "tests/*.test.mjs"
 import test from 'node:test';

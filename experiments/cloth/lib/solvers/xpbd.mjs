@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // D) Minimal own XPBD cloth (plain JS, no deps). Substepped XPBD with 1 iteration per substep
 // (Macklin et al. 2019 "small steps"): distance (stretch + shear), skip-one distance bending,
 // per-vertex maxDistance to the skinned position (mask), capsule colliders interpolated per substep,

@@ -119,20 +119,20 @@ idle-variation rules and how to add a clip: [docs/ANIMATION_CLIPS.md](docs/ANIMA
 
 Short version (full table in [LICENSE-NOTES.md](LICENSE-NOTES.md)):
 
-The code in this repository is licensed under **GPL-3.0-or-later** ([LICENSE](LICENSE)), Copyright (C) 2026
-Kasper Olesen. It was MIT until 2026-10-03; earlier commits and copies received under MIT stay MIT for those who
-received them (details in [LICENSE-NOTES.md](LICENSE-NOTES.md)). Generated files under `output/` are CC0-1.0 as
-listed below. Using the plugin in a game:
-[LICENSE-NOTES.md, "Using the plugin in a game"](LICENSE-NOTES.md#using-the-plugin-in-a-game-gpl-30-or-later)
-(not legal advice).
+The code in this repository is licensed under **MIT** ([LICENSE](LICENSE)), Copyright (c) 2026 Kasper Olesen and
+CharacterCreator contributors. Exceptions that stay **GPL-3.0-or-later** because they derive from or link to GPL
+code: `web/mh/human.js` (follows MPFB 2) and the Blender build scripts that import Blender / MPFB (list in
+[LICENSE-NOTES.md](LICENSE-NOTES.md)). The code was GPL-3.0-or-later from 2026-10-03 to 2026-11-27; copies received
+under GPL keep those rights. Generated files under `output/` are CC0-1.0 as listed below. Using the plugin in a game:
+[LICENSE-NOTES.md, "Using the plugin in a game"](LICENSE-NOTES.md#using-the-plugin-in-a-game) (not legal advice).
 
-- **MPFB 2** is GPL-3.0-or-later code (compatible with ours). It runs inside Blender at build time only and is not
+- **MPFB 2** is GPL-3.0-or-later code. It runs inside Blender at build time only and is not
   part of the plugin/runtime or the output.
 - **MakeHuman base mesh, targets, rig and weights** and the shipped **skin texture, eyes, eyebrows,
   eyelashes, teeth, tongue and 8 hair styles** (MakeHuman CC0 system pack, verified per asset by the build)
   are **CC0**, so the exported `output/*.glb` / `*.json` are free to use, including commercially, with no
   attribution required.
-- **three.js** is MIT (a third-party library, GPL-compatible; its notice is kept).
+- **three.js** is MIT (a third-party library; its notice is kept).
 - **Clothing**: T-shirt, jeans, skirt, shoes are CC0 MakeHuman system assets (checked by the build); the trench
   coat is the CC0 `male_casualsuit05` jacket plus a project-generated long skirt, belt, standing collar and
   lapels (see LICENSE-NOTES.md).

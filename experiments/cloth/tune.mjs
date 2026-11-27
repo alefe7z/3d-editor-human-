@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-3.0-or-later
+// SPDX-License-Identifier: MIT
 // Parameter sweep helper: node tune.mjs <solver> <n> <body> '<json params>' ['<json params>' ...]
 import fs from 'node:fs';
 import { runOne } from './lib/run.mjs';

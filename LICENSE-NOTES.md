@@ -4,20 +4,29 @@ This is a summary, not legal advice. Check the upstream licenses when in doubt.
 
 ## Code licence
 
-- **Code in this repository: GPL-3.0-or-later** (SPDX `GPL-3.0-or-later`), full text in [LICENSE](LICENSE).
-  Copyright (C) 2026 Kasper Olesen. Source files carry the header `SPDX-License-Identifier: GPL-3.0-or-later`.
-- **Relicensed from MIT on 2026-10-03** by the owner, who holds all copyright (the only other contributors are AI
-  agents working for him). The change takes effect with the commit that adds this section (branch `license/gpl`).
-  All earlier commits (master up to `0d78054`) were released under the MIT licence, and anyone who received a copy
-  under MIT keeps the MIT rights for that copy.
-- Why GPL: the plugin is not meant to be built into closed-source games, and GPL-3.0-or-later matches MPFB 2.
-- Third-party libraries keep their own licences and notices (three.js: MIT, GPL-compatible). MPFB 2 is
-  GPL-3.0-or-later and therefore compatible with this code.
+- **Code in this repository: MIT** (SPDX `MIT`), full text in [LICENSE](LICENSE), Copyright (c) 2026 Kasper Olesen
+  and CharacterCreator contributors. Source files carry the header `SPDX-License-Identifier: MIT`.
+- **Changed from GPL-3.0-or-later back to MIT on 2026-11-27** by the owner. Commits from 2026-10-03 up to that change
+  were released under GPL-3.0-or-later, and copies received under GPL keep those GPL rights. The commits before
+  2026-10-03 were MIT.
+- **Exception, still GPL-3.0-or-later** (header `SPDX-License-Identifier: GPL-3.0-or-later`, licence text in
+  [LICENSES/GPL-3.0-or-later.txt](LICENSES/GPL-3.0-or-later.txt)): files that are derived from or link to GPL code,
+  so their licence cannot be changed by this project:
+  - `web/mh/human.js`: follows MPFB 2's `TargetService.calculate_target_stack_from_macro_info_dict` (MPFB 2,
+    GPL-3.0-or-later, copyright its authors). Only the runtime prototype (`web/runtime.html` / `runtime.js`) loads
+    it; the main viewer (`web/index.html`) does not.
+  - Blender build scripts that import Blender (`bpy`) and/or MPFB: `blender/build_base.py`, `blender/cc_clothing.py`,
+    `blender/cc_textures.py`, `blender/bake_clips.py`, `blender/tools/probe.py`. They run inside Blender at build
+    time and are not part of the viewer or the output.
+  To make one of these MIT, rewrite it without the GPL source (clean room, see docs/PROVENANCE.md).
+- Third-party code may be added under any licence that allows it (MIT, BSD, Apache-2.0, CC0, ...): keep its
+  copyright line and licence notice next to it and list it in this file. Code with **no licence** may not be copied.
+- three.js: MIT.
 
 ## Generated files (owner decision 2026-10-03)
 
 Files **generated** by our pipeline are released under **CC0-1.0 where all their sources are CC0** (MakeHuman
-system assets, our own authored data). The code that generates them stays GPL-3.0-or-later.
+system assets, our own authored data). The code that generates them is MIT (the GPL exceptions above stay GPL).
 
 | Class of file | Licence |
 |---|---|
@@ -35,21 +44,15 @@ not to what we derive from its CC0 assets. The licence strings the build already
 (`CC0`, `project-original`, `CC0 source + project-original extension`) describe the sources; under this decision
 all three mean CC0-1.0 for the generated file.
 
-## Using the plugin in a game (GPL-3.0-or-later)
+## Using the plugin in a game
 
 Not legal advice; read the licence and ask a lawyer for a concrete case.
 
-1. Commercial use and selling are allowed. The GPL requires that recipients can get the source code of the
-   GPL-covered part, and that changes to it are shared under the same licence.
-2. Typically not covered by the code licence: your game's art, audio, levels, music, story and other **data**, as
-   long as it is separate data and not part of a combined program. The generated character files (GLB etc.) follow
-   the asset licences in this file (see "Generated files"), not the code licence.
-3. A game that loads the plugin into the same program forms a combined work with it, so the game must itself be
-   GPL-compatible and provide its source to its recipients.
-4. Practical limits: closed engines, app stores and many console terms are often incompatible with GPL code
-   (Unity, Unreal, console SDKs: check their terms). The GPL does not allow technical measures that stop users
-   from running modified versions.
-5. Revenue models that work with GPL games: selling builds, support, extra content (data), and services.
+1. The MIT code (the viewer in `web/` except `web/mh/human.js`, `tools/`, `tests/`, `experiments/`) may be used in
+   open or closed-source and commercial projects. The only condition: keep the copyright and MIT notice.
+2. The generated character files (GLB etc.) follow the asset licences in this file (see "Generated files").
+3. The GPL exceptions: a program that ships `web/mh/human.js` is a combined work with GPL code and must provide its
+   source under the GPL to its recipients. The Blender build scripts are tools; their output is not GPL.
 
 | Part | Source | License | Consequence |
 |---|---|---|---|
@@ -61,7 +64,7 @@ Not legal advice; read the licence and ask a lawyer for a concrete case.
 | Eyes, eyebrows, eyelashes, teeth, tongue, 8 hair styles, skin texture (table below) | MakeHuman system assets CC0 pack | CC0 1.0 | Meshes and (re-processed) textures ship inside `output/base_body.glb`, `output/base_body_anim.glb` and `output/hair_*.glb`. |
 | Pore micro-normal texture, skin region mask (`skin_regions`) | generated by this project's code (`web/materials.js`, `blender/cc_textures.py`) | generated: CC0-1.0 (see "Generated files") | No external image source. |
 | three.js (loaded by `web/`) | mrdoob/three.js | MIT | Keep the MIT notice if three.js files are vendored into the site. `RoomEnvironment` (IBL) is part of three.js. |
-| Scripts in this repo (`blender/`, `web/`, `tools/`, `tests/`, `experiments/`, `docs/`) | this project | GPL-3.0-or-later (see `LICENSE`) | Copyright (C) 2026 Kasper Olesen. Earlier commits: MIT (see "Code licence"). Files under `output/` are CC0 as listed in this file. |
+| Scripts in this repo (`blender/`, `web/`, `tools/`, `tests/`, `experiments/`, `docs/`) | this project | MIT (see `LICENSE`), except the GPL-3.0-or-later files listed under "Code licence" | Copyright (c) 2026 Kasper Olesen and CharacterCreator contributors. Files under `output/` are CC0 as listed in this file. |
 | Clothing: T-shirt, jeans, skirt, shoes, shorts, long-sleeve shirt, jacket, boots (table below) | MakeHuman system assets CC0 pack | CC0 1.0 | Fitted, re-processed meshes + textures ship in `output/clothing_*.glb`. |
 | Trench coat, long (`output/clothing_trenchcoat.glb`) | jacket of the CC0 `male_casualsuit05` (without its collar and chest pockets), cut at the waist; long skirt, belt, standing collar and lapels generated by this project's code (`blender/cc_clothing.py` `coat_skirt`, `coat_collar`, `coat_drop_pockets`) | CC0 source + project-original extension | No CC0 long coat exists in the pack. The jacket body and sleeves are the CC0 asset. Generated by project code: the floor-length skirt (open front, back vent, hem flare) and the belt band (971 vertices, 23 rows x 37 columns); the tall standing collar and the peaked lapels (285 vertices, 57 columns x 5 rows) that replace the CC0 collar; the fill of the removed chest pocket holes (30 vertices, texels in-painted from the jacket cloth); their UVs, morph deltas (fitted, then mirror-symmetrised), skin weights, pin mask, and their textures (median colour of the jacket cloth + procedural noise; belt: procedural grain + stitch lines). No third-party asset is involved. |
 | Hoodie (`output/clothing_hoodie.glb`) | sweater of the CC0 `male_casualsuit02` (1250 vertices, unchanged topology, offset 6 mm outwards); the lying hood generated by this project's code (`blender/cc_clothing.py` `hood_down`) | CC0 source + project-original extension | The sweater body and sleeves are the CC0 asset. Generated by project code: the hood (429 vertices, 33 columns x 13 rows) grown from the neckline, its UVs, morph deltas (fitted, then mirror-symmetrised), skin weights; the whole texture is procedural (`tex_procedural`: knit noise, rib bands at cuffs / hem / neck, kangaroo pocket drawn on, hood seam). No third-party image and no other asset is involved. |
@@ -145,7 +148,8 @@ The project's working rule, not legal advice. Ask a lawyer if it matters for a c
   wrote the code; a fork may carry code under other terms.
 - **Architecture rule, not a licence rule.** Build scripts may import MPFB and call its API inside Blender at build
   time (as `blender/build_base.py` does), but the plugin/runtime contains no MPFB code, so it stays independent of
-  Blender and MPFB (ROADMAP section 3 point 4). `tools/check_no_gpl_paste.mjs` is a tripwire for that rule.
+  Blender and MPFB (ROADMAP section 3 point 4). The `tools/check_no_gpl_paste.mjs` tripwire was removed on 2026-11-27 (owner decision);
+  code derived from MPFB must now be marked GPL by hand (see "Code licence").
   MPFB's output data (meshes, targets, weights from the CC0 assets) is not GPL.
 - **CC0 assets are fine** in both directions: MakeHuman's CC0 targets, `macro.json`, meshes and textures may be
   used here and referenced in an MPFB contribution.
