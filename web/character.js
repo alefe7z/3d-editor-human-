@@ -19,8 +19,9 @@
 export const GLUTE_SLIDERS = ['Volume', 'Projection', 'Width', 'Roundness', 'Lift', 'Softness']
   .map(name => ({ id: `glute${name}`, group: 'glute', label: name, signedTarget: true }));
 
-export const EXTERNAL_SLIDERS = ['Fullness', 'Width', 'FoldRelief']
-  .map(name => ({ id: `external${name}`, group: 'external', label: name, signedTarget: true }));
+export const EXTERNAL_SLIDERS = Object.entries({
+  Fullness: 0, Width: 0, OuterContour: 0.55, FoldRelief: 0.45, Hood: 0.4, Vestibule: 0.4,
+}).map(([name, value]) => ({ id: `external${name}`, group: 'external', label: name, signedTarget: true, default: value }));
 
 export const SLIDERS = [
   { id: 'gender',      group: 'body', label: 'Køn',                   neg: 'gender_female',        pos: 'gender_male', binary: true, default: 1 },

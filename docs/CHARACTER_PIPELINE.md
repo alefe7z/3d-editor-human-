@@ -33,9 +33,11 @@ and affects the lower abdomen and the front of fitted garments. Use
 **Front view** to inspect it while walking. The secondary motion runs in the editor. A GLB
 can retain its morph target for a runtime driver.
 
-**External anatomy** on the adult female body provides localized controls for
-pubic fullness, contour width and surface fold relief. These controls use the
-original body's mesh resolution. The motion slider drives a small damped
+**External anatomy** on the adult female body provides controls for pubic fullness, contour width, outer and inner labia,
+the clitoral hood and depth of the vestibule surface. Local mesh refinement
+preserves the UVs, skin weights and existing morph targets. The surface form
+is based on adult external anatomical landmarks described by
+[Cleveland Clinic](https://my.clevelandclinic.org/health/body/vulva). The motion slider drives a small damped
 deformation during pelvis movement. Static controls are saved and exported.
 The dynamic deformer's target can be retained in GLB for a runtime driver.
 

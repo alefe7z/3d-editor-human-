@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 import { BufferAttribute, BufferGeometry } from 'three';
+import { refineExternalAnatomy } from './refine-pelvis.js';
 
 export const GLUTE_MOTION = 'dyn_glute_vertical';
 export const FRONT_HIP_MOTION = 'dyn_front_hip';
@@ -35,7 +36,7 @@ export function pelvisDeltas(x, y, z, external = false) {
   };
 }
 
-// Low-resolution external anatomy of the bundled body in its neutral rest pose.
+// External landmarks in neutral rest space. These contours are part of one continuous skin surface.
 function externalDeltas(x, y, z) {
   const side = Math.abs(x);
   const anterior = smooth(0.014, 0.054, z);
@@ -43,19 +44,28 @@ function externalDeltas(x, y, z) {
   const contour = anterior * vertical * (1 - smooth(0.022, 0.062, side));
   const pubic = anterior * smooth(0.793, 0.824, y) * (1 - smooth(0.848, 0.890, y))
     * (1 - smooth(0.023, 0.073, side));
-  const fold = Math.exp(-(((side - 0.014) / 0.010) ** 2));
+  const band = (value, center, radius) => Math.exp(-(((value - center) / radius) ** 2));
+  const outer = band(side, 0.023, 0.012) * band(y, 0.785, 0.029) * contour;
+  const innerCenter = 0.007 + 0.004 * band(y, 0.785, 0.016);
+  const inner = band(side, innerCenter, 0.0045) * band(y, 0.786, 0.017) * contour;
+  const hood = band(side, 0.003, 0.006) * band(y, 0.804, 0.007) * anterior;
+  const vestibule = band(side, 0, 0.006) * band(y, 0.781, 0.011) * contour;
   return {
     externalFullness: [0, 0, 0.011 * pubic],
     externalWidth: [x * 0.38 * contour, 0, 0],
-    externalFoldRelief: [0, 0, 0.006 * contour * fold],
+    externalOuterContour: [0, 0, 0.008 * outer],
+    externalFoldRelief: [0, 0, 0.006 * inner],
+    externalHood: [0, 0, 0.0035 * hood],
+    externalVestibule: [0, 0, -0.004 * vestibule],
     [EXTERNAL_MOTION]: [0, 0.0025 * contour, 0.001 * contour],
   };
 }
 
 export function installPelvisMorphs(mesh, { external = false } = {}) {
   const geometry = mesh.geometry;
-  const position = geometry?.attributes.position;
-  if (installed.has(geometry) || !position || !geometry.morphTargetsRelative) return;
+  if (!geometry?.attributes.position || installed.has(geometry) || !geometry.morphTargetsRelative) return;
+  if (external) refineExternalAnatomy(geometry);
+  const position = geometry.attributes.position;
   const deltas = Object.fromEntries(Object.keys(pelvisDeltas(0, 0, 0, external))
     .map(name => [name, new Float32Array(position.count * 3)]));
   const base = new Float32Array(position.count * 3);
